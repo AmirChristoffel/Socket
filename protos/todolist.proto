@@ -1,0 +1,46 @@
+// Sintaxe do Protocol Buffers 3
+syntax = "proto3";
+
+// Enum para os diferentes tipos de dispositivos
+enum DeviceType {
+  UNKNOWN = 0;
+  CAMERA = 1;
+  LAMP_POST = 2;   // Poste
+  TRAFFIC_LIGHT = 3; // Semáforo
+  AIR_QUALITY_SENSOR = 4;
+  TEMPERATURE_SENSOR = 5;
+}
+
+// Mensagem para um dispositivo se anunciar na rede (Descoberta)
+message DeviceAnnouncement {
+  string device_id = 1;      // Um identificador único, ex: "temp_sensor_01"
+  DeviceType type = 2;
+  string ip_address = 3;
+  int32 port = 4;
+  bool is_actuator = 5;      // Informa se é um atuador ou sensor
+}
+
+// Mensagem para enviar dados de um sensor
+message SensorData {
+  string device_id = 1;
+  float value = 2;
+  string unit = 3; // ex: "Celsius", "µg/m³"
+}
+
+// Mensagem para enviar um comando para um atuador
+message ActuatorCommand {
+  string device_id = 1;
+  bool state = 2; // true para 'ligado', false para 'desligado'
+  // Campos opcionais para configurações mais complexas
+  // int32 traffic_light_time = 3;
+  // string camera_resolution = 4;
+}
+
+// Mensagem genérica que pode conter qualquer um dos tipos acima.
+message SmartCityMessage {
+  oneof payload {
+    DeviceAnnouncement announcement = 1;
+    SensorData sensor_data = 2;
+    ActuatorCommand command = 3;
+  }
+}
