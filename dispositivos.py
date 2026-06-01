@@ -88,16 +88,18 @@ class Dispositivos:
                 msg = todolist_pb2.SmartCityMessage()
                 msg.ParseFromString(data)
 
-                if msg.HasField("gateway_discovery"):
-                    # Extrai IP dinamicamente do remetente (addr[0])
-                    # e Porta de Dados do campo Protobuf — sem nenhum hardcode
+                # [CORREÇÃO] Campo renomeado de gateway_discovery → discovery no .proto
+                if msg.HasField("discovery"):
+                    # Extrai IP do remetente e porta de dados do Protobuf
                     gateway_ip = address[0]
-                    gateway_data_port = msg.gateway_discovery.data_port
+                    gateway_data_port = msg.discovery.data_port
                     self.gateway_address = (gateway_ip, gateway_data_port)
                     print(f"\n[{self.device_id}] Gateway descoberto em {self.gateway_address}")
-                    self.send_announcement(address)
+                    # Envia anúncio para a PORTA DE DADOS (5008), não para a porta
+                    # efêmera do broadcaster — o receptor unificado escuta lá
+                    self.send_announcement(self.gateway_address)
                 else:
-                    print(f"[{self.device_id}] Mensagem Multicast ignorada (não é GatewayDiscovery).")
+                    print(f"[{self.device_id}] Mensagem Multicast ignorada (não é discovery).")
 
             except Exception as e:
                 print(f"[{self.device_id}] Erro ao processar mensagem Multicast de {address}: {e}")
