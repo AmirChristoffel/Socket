@@ -5,71 +5,63 @@ syntax = "proto3";
 enum DeviceType {
   UNKNOWN = 0;
   CAMERA = 1;
-  LAMP_POST = 2;            // Poste
-  TRAFFIC_LIGHT = 3;        // Semáforo
+  LAMP_POST = 2;   // Poste
+  TRAFFIC_LIGHT = 3; // Semáforo
   AIR_QUALITY_SENSOR = 4;
   TEMPERATURE_SENSOR = 5;
 }
 
-// Mensagem para um dispositivo se anunciar na rede (Descoberta)
-message DeviceAnnouncement {
-  string device_id = 1;     // Identificador único, ex: "temp_sensor_01"
-  DeviceType type = 2;
-  string ip_address = 3;
-  int32 port = 4;
-  bool is_actuator = 5;     // Informa se é um atuador ou sensor
-}
-
-// Mensagem para enviar dados de um sensor
-message SensorData {
-  string device_id = 1;
-  float value = 2;
-  string unit = 3;          // ex: "Celsius", "µg/m³"
-  int64 timestamp = 4;      // Unix Epoch em segundos — hora exata da leitura
-}
-
-// Mensagem para enviar um comando para um atuador
-message ActuatorCommand {
-  string device_id = 1;
-  bool state = 2;           // true para 'ligado', false para 'desligado'
-  int32 frequency_seconds = 3; // Intervalo de envio em segundos (ex: 15 → 5)
-  float threshold = 4;         // Limiar de alerta (ex: CO2 > 400 ppm)
-  bool enabled = 5;            // Ativa ou desativa a fonte de dados
-}
-
-// Mensagem enviada pelo Gateway no Multicast de descoberta.
-// Inclui a porta UDP onde o Gateway escuta dados dos sensores,
-// eliminando qualquer endereço hardcoded nos dispositivos.
+// 1. Mensagem oficial de Descoberta
 message GatewayDiscovery {
   int32 data_port = 1;
 }
 
-// Mensagem enviada pelo Cliente Analítico ao Gateway via TCP.
-// command: ação a executar (ex: "LIST", "SET_STATE", "SET_FREQ", "GET_STATS")
-// target_device_id: ID do dispositivo alvo (vazio para consultas gerais)
-// new_state: valor bool para comandos de ligar/desligar
+// 2. Anúncio do Dispositivo
+message DeviceAnnouncement {
+  string device_id = 1;
+  DeviceType type = 2;
+  string ip_address = 3;
+  int32 port = 4;
+  bool is_actuator = 5;
+}
+
+// 3. Dados do Sensor
+message SensorData {
+  string device_id = 1;
+  float value = 2;
+  string unit = 3;
+  int64 timestamp = 4; // Nosso timestamp!
+}
+
+// 4. Comando para Atuador expandido
+message ActuatorCommand {
+  string device_id = 1;
+  bool state = 2;
+  int32 frequency_seconds = 3; 
+  float threshold = 4;         
+  bool enabled = 5;            
+}
+
+// 5. Novas mensagens do Cliente Analítico
 message ClientRequest {
   string command = 1;
   string target_device_id = 2;
   bool new_state = 3;
 }
 
-// Mensagem de resposta do Gateway ao Cliente Analítico via TCP.
-// status: "OK" ou "ERROR"
-// message: resultado legível da operação (ex: lista de dispositivos, média calculada)
 message GatewayResponse {
   string status = 1;
   string message = 2;
 }
 
-// Envelope principal — todas as mensagens do sistema passam por aqui.
+// 6. O Envelope Universal (Atualizado com todos os payloads)
 message SmartCityMessage {
   oneof payload {
-    DeviceAnnouncement announcement = 1;  // Dispositivo → Gateway (descoberta)
-    SensorData sensor_data = 2;           // Sensor → Gateway (leituras UDP)
-    ActuatorCommand command = 3;          // Gateway → Atuador (controle TCP)
-    GatewayDiscovery gateway_discovery = 4; // Gateway → Rede (multicast UDP)
-    ClientRequest client_request = 5;     // Cliente → Gateway (requisições TCP)
-    GatewayResponse gateway_response = 6; // Gateway → Cliente (respostas TCP)
+    GatewayDiscovery discovery = 1;
+    DeviceAnnouncement announcement = 2;
+    SensorData sensor_data = 3;
+    ActuatorCommand command = 4;
+    ClientRequest client_request = 5;
+    GatewayResponse gateway_response = 6;
   }
 }
