@@ -166,15 +166,8 @@ class SmartCityGateway:
             ).start()
 
     def _handle_client(self, conn, addr):
-        """Processa uma única conexão de cliente TCP.
-
-        Fluxo:
-          1. Recebe os bytes enviados pelo cliente
-          2. Desserializa em SmartCityMessage (Protobuf)
-          3. Verifica se é um ClientRequest e despacha pelo campo 'command'
-          4. Serializa e envia a GatewayResponse de volta
-          5. Fecha a conexão
-        """
+        """Recebe um ClientRequest Protobuf, despacha para o handler correto
+        e devolve um GatewayResponse serializado pelo mesmo socket TCP."""
         try:
             data = conn.recv(4096)
             if not data:
@@ -187,29 +180,105 @@ class SmartCityGateway:
                 print(f"[TCP] Pacote de {addr} ignorado (nao e ClientRequest).")
                 return
 
-            request = msg.client_request
-            print(f"[TCP] Comando recebido de {addr}: '{request.command}'")
+            req = msg.client_request
+            print(f"[TCP] Comando recebido de {addr}: '{req.command}'")
 
-            # --- Despachante de comandos ---
+            # --- Despachante: cada comando chama seu auxiliar privado ---
             response_msg = todolist_pb2.SmartCityMessage()
 
-            if request.command == "PING":
+            if req.command == "PING":
                 response_msg.gateway_response.status  = "SUCCESS"
                 response_msg.gateway_response.message = "PONG"
 
+            elif req.command == "LIST_DEVICES":
+                status, message = self._cmd_list_devices()
+                response_msg.gateway_response.status  = status
+                response_msg.gateway_response.message = message
+
+            elif req.command == "GET_AVG":
+                status, message = self._cmd_get_avg(req.target_device_id)
+                response_msg.gateway_response.status  = status
+                response_msg.gateway_response.message = message
+
+            elif req.command == "SET_STATE":
+                status, message = self._cmd_set_state(
+                    req.target_device_id, req.new_state
+                )
+                response_msg.gateway_response.status  = status
+                response_msg.gateway_response.message = message
+
             else:
-                # Comando não reconhecido — resposta padrao de erro
                 response_msg.gateway_response.status  = "ERROR"
-                response_msg.gateway_response.message = f"Comando desconhecido: '{request.command}'"
+                response_msg.gateway_response.message = f"Comando desconhecido: '{req.command}'"
 
             conn.sendall(response_msg.SerializeToString())
-            print(f"[TCP] Resposta enviada para {addr}: "
-                  f"status={response_msg.gateway_response.status}")
+            print(f"[TCP] Resposta para {addr}: status={response_msg.gateway_response.status}")
 
         except Exception as e:
             print(f"[TCP] Erro ao atender {addr}: {e}")
         finally:
-            conn.close()  # garante fechamento mesmo em caso de excecao
+            conn.close()
+
+    # --- Auxiliares do despachante (uma responsabilidade cada) --------------
+
+    def _cmd_list_devices(self):
+        """Retorna uma string formatada com todos os dispositivos em active_devices."""
+        with self.lock:
+            # Copia o estado para liberar o lock antes de formatar
+            snapshot = dict(self.active_devices)
+
+        if not snapshot:
+            return "ERROR", "Nenhum dispositivo conectado."
+
+        lines = [f"  [{i+1}] {did} | tipo={info['type']} | "
+                 f"atuador={info['is_actuator']} | ip={info['ip']}:{info['port']}"
+                 for i, (did, info) in enumerate(snapshot.items())]
+        return "SUCCESS", f"{len(snapshot)} dispositivo(s):\n" + "\n".join(lines)
+
+    def _cmd_get_avg(self, device_id):
+        """Calcula a média das leituras de um sensor a partir do sensor_history."""
+        if not device_id:
+            return "ERROR", "target_device_id nao informado."
+
+        with self.lock:
+            readings = [r for r in self.sensor_history
+                        if r['device_id'] == device_id]
+
+        if not readings:
+            return "ERROR", f"Sem leituras para '{device_id}'."
+
+        avg  = sum(r['value'] for r in readings) / len(readings)
+        unit = readings[-1]['unit']
+        return "SUCCESS", f"Media de '{device_id}': {avg:.2f} {unit} ({len(readings)} leituras)"
+
+    def _cmd_set_state(self, device_id, new_state):
+        """Repassa um ActuatorCommand via TCP diretamente ao atuador."""
+        if not device_id:
+            return "ERROR", "target_device_id nao informado."
+
+        with self.lock:
+            device = self.active_devices.get(device_id)
+
+        if device is None:
+            return "ERROR", f"Dispositivo '{device_id}' nao encontrado."
+
+        if not device['is_actuator']:
+            return "ERROR", f"'{device_id}' nao e um atuador."
+
+        # Monta o comando Protobuf para o atuador
+        cmd_msg = todolist_pb2.SmartCityMessage()
+        cmd_msg.command.device_id = device_id
+        cmd_msg.command.state     = new_state
+
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(5)
+                s.connect((device['ip'], device['port']))
+                s.sendall(cmd_msg.SerializeToString())
+            estado = "LIGADO" if new_state else "DESLIGADO"
+            return "SUCCESS", f"'{device_id}' definido como {estado}."
+        except (ConnectionRefusedError, TimeoutError, OSError) as e:
+            return "ERROR", f"Falha ao contactar '{device_id}': {e}"
 
     # -----------------------------------------------------------------------
     # 5. MÉTODO DE INICIALIZAÇÃO (start)
