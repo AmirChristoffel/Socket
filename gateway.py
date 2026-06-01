@@ -277,11 +277,51 @@ class SmartCityGateway:
                 s.sendall(cmd_msg.SerializeToString())
             estado = "LIGADO" if new_state else "DESLIGADO"
             return "SUCCESS", f"'{device_id}' definido como {estado}."
-        except (ConnectionRefusedError, TimeoutError, OSError) as e:
-            return "ERROR", f"Falha ao contactar '{device_id}': {e}"
+        except (ConnectionRefusedError, TimeoutError, OSError):
+            # Deteccao lazy de falha em atuadores: remove ao primeiro erro de conexao
+            with self.lock:
+                self.active_devices.pop(device_id, None)
+            print(f"\n[ALERTA] Atuador '{device_id}' nao respondeu e foi removido!\n")
+            return "ERROR", f"Atuador '{device_id}' estava offline e foi removido."
 
     # -----------------------------------------------------------------------
-    # 5. MÉTODO DE INICIALIZAÇÃO (start)
+    # 5. MONITOR DE FALHAS (Heartbeat Checker)
+    # -----------------------------------------------------------------------
+
+    def _thread_monitor_falhas(self):
+        """Verifica a cada 10 s se algum sensor parou de enviar dados.
+
+        Lógica:
+          - Sensores enviam leituras a cada 15 s.
+          - Se last_seen > 35 s atrás (15 s de intervalo + 20 s de margem),
+            considera o sensor morto e o remove de active_devices.
+          - Atuadores não são verificados aqui: a detecção deles ocorre
+            no momento do repasse em _cmd_set_state (falha lazy).
+        """
+        TIMEOUT_SENSOR = 35  # segundos sem dados → sensor considerado offline
+
+        print("[Monitor] Thread de deteccao de falhas iniciada (intervalo=10s).")
+        while True:
+            time.sleep(10)
+            agora = time.time()
+            removidos = []
+
+            with self.lock:
+                for device_id in list(self.active_devices.keys()):
+                    info = self.active_devices[device_id]
+                    tempo_inativo = agora - info['last_seen']
+
+                    if not info['is_actuator'] and tempo_inativo > TIMEOUT_SENSOR:
+                        del self.active_devices[device_id]
+                        removidos.append(device_id)
+
+            # Imprime alertas fora do lock para não segurá-lo durante I/O
+            for device_id in removidos:
+                print(f"\n[ALERTA] Sensor '{device_id}' parou de enviar dados "
+                      f"e foi removido da lista de ativos!\n")
+
+    # -----------------------------------------------------------------------
+    # 6. MÉTODO DE INICIALIZAÇÃO (start)
     # -----------------------------------------------------------------------
 
     def start(self):
@@ -311,7 +351,14 @@ class SmartCityGateway:
             name="TCP-Server"
         ).start()
 
-        print("[Gateway] Em execução. Pressione Ctrl+C para sair.\n")
+        # Monitor de falhas: remove dispositivos inativos periodicamente
+        threading.Thread(
+            target=self._thread_monitor_falhas,
+            daemon=True,
+            name="Fault-Monitor"
+        ).start()
+
+        print("[Gateway] Em execucao. Pressione Ctrl+C para sair.\n")
         try:
             while True:
                 time.sleep(1)
