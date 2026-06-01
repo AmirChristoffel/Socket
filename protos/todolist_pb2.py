@@ -24,23 +24,27 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0etodolist.proto\"y\n\x12\x44\x65viceAnnouncement\x12\x11\n\tdevice_id\x18\x01 \x01(\t\x12\x19\n\x04type\x18\x02 \x01(\x0e\x32\x0b.DeviceType\x12\x12\n\nip_address\x18\x03 \x01(\t\x12\x0c\n\x04port\x18\x04 \x01(\x05\x12\x13\n\x0bis_actuator\x18\x05 \x01(\x08\"O\n\nSensorData\x12\x11\n\tdevice_id\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12\x0c\n\x04unit\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\x03\"3\n\x0f\x41\x63tuatorCommand\x12\x11\n\tdevice_id\x18\x01 \x01(\t\x12\r\n\x05state\x18\x02 \x01(\x08\"%\n\x10GatewayDiscovery\x12\x11\n\tdata_port\x18\x01 \x01(\x05\"\xc3\x01\n\x10SmartCityMessage\x12+\n\x0c\x61nnouncement\x18\x01 \x01(\x0b\x32\x13.DeviceAnnouncementH\x00\x12\"\n\x0bsensor_data\x18\x02 \x01(\x0b\x32\x0b.SensorDataH\x00\x12#\n\x07\x63ommand\x18\x03 \x01(\x0b\x32\x10.ActuatorCommandH\x00\x12.\n\x11gateway_discovery\x18\x04 \x01(\x0b\x32\x11.GatewayDiscoveryH\x00\x42\t\n\x07payload*w\n\nDeviceType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\n\n\x06\x43\x41MERA\x10\x01\x12\r\n\tLAMP_POST\x10\x02\x12\x11\n\rTRAFFIC_LIGHT\x10\x03\x12\x16\n\x12\x41IR_QUALITY_SENSOR\x10\x04\x12\x16\n\x12TEMPERATURE_SENSOR\x10\x05\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0etodolist.proto\"y\n\x12\x44\x65viceAnnouncement\x12\x11\n\tdevice_id\x18\x01 \x01(\t\x12\x19\n\x04type\x18\x02 \x01(\x0e\x32\x0b.DeviceType\x12\x12\n\nip_address\x18\x03 \x01(\t\x12\x0c\n\x04port\x18\x04 \x01(\x05\x12\x13\n\x0bis_actuator\x18\x05 \x01(\x08\"O\n\nSensorData\x12\x11\n\tdevice_id\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x02\x12\x0c\n\x04unit\x18\x03 \x01(\t\x12\x11\n\ttimestamp\x18\x04 \x01(\x03\"r\n\x0f\x41\x63tuatorCommand\x12\x11\n\tdevice_id\x18\x01 \x01(\t\x12\r\n\x05state\x18\x02 \x01(\x08\x12\x19\n\x11\x66requency_seconds\x18\x03 \x01(\x05\x12\x11\n\tthreshold\x18\x04 \x01(\x02\x12\x0f\n\x07\x65nabled\x18\x05 \x01(\x08\"%\n\x10GatewayDiscovery\x12\x11\n\tdata_port\x18\x01 \x01(\x05\"M\n\rClientRequest\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\t\x12\x18\n\x10target_device_id\x18\x02 \x01(\t\x12\x11\n\tnew_state\x18\x03 \x01(\x08\"2\n\x0fGatewayResponse\x12\x0e\n\x06status\x18\x01 \x01(\t\x12\x0f\n\x07message\x18\x02 \x01(\t\"\x9b\x02\n\x10SmartCityMessage\x12+\n\x0c\x61nnouncement\x18\x01 \x01(\x0b\x32\x13.DeviceAnnouncementH\x00\x12\"\n\x0bsensor_data\x18\x02 \x01(\x0b\x32\x0b.SensorDataH\x00\x12#\n\x07\x63ommand\x18\x03 \x01(\x0b\x32\x10.ActuatorCommandH\x00\x12.\n\x11gateway_discovery\x18\x04 \x01(\x0b\x32\x11.GatewayDiscoveryH\x00\x12(\n\x0e\x63lient_request\x18\x05 \x01(\x0b\x32\x0e.ClientRequestH\x00\x12,\n\x10gateway_response\x18\x06 \x01(\x0b\x32\x10.GatewayResponseH\x00\x42\t\n\x07payload*w\n\nDeviceType\x12\x0b\n\x07UNKNOWN\x10\x00\x12\n\n\x06\x43\x41MERA\x10\x01\x12\r\n\tLAMP_POST\x10\x02\x12\x11\n\rTRAFFIC_LIGHT\x10\x03\x12\x16\n\x12\x41IR_QUALITY_SENSOR\x10\x04\x12\x16\n\x12TEMPERATURE_SENSOR\x10\x05\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'todolist_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_DEVICETYPE']._serialized_start=512
-  _globals['_DEVICETYPE']._serialized_end=631
+  _globals['_DEVICETYPE']._serialized_start=794
+  _globals['_DEVICETYPE']._serialized_end=913
   _globals['_DEVICEANNOUNCEMENT']._serialized_start=18
   _globals['_DEVICEANNOUNCEMENT']._serialized_end=139
   _globals['_SENSORDATA']._serialized_start=141
   _globals['_SENSORDATA']._serialized_end=220
   _globals['_ACTUATORCOMMAND']._serialized_start=222
-  _globals['_ACTUATORCOMMAND']._serialized_end=273
-  _globals['_GATEWAYDISCOVERY']._serialized_start=275
-  _globals['_GATEWAYDISCOVERY']._serialized_end=312
-  _globals['_SMARTCITYMESSAGE']._serialized_start=315
-  _globals['_SMARTCITYMESSAGE']._serialized_end=510
+  _globals['_ACTUATORCOMMAND']._serialized_end=336
+  _globals['_GATEWAYDISCOVERY']._serialized_start=338
+  _globals['_GATEWAYDISCOVERY']._serialized_end=375
+  _globals['_CLIENTREQUEST']._serialized_start=377
+  _globals['_CLIENTREQUEST']._serialized_end=454
+  _globals['_GATEWAYRESPONSE']._serialized_start=456
+  _globals['_GATEWAYRESPONSE']._serialized_end=506
+  _globals['_SMARTCITYMESSAGE']._serialized_start=509
+  _globals['_SMARTCITYMESSAGE']._serialized_end=792
 # @@protoc_insertion_point(module_scope)
