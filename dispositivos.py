@@ -23,6 +23,9 @@ class Dispositivos:
         self.port = 0          # Porta TCP será alocada dinamicamente
         self.estado = False    # Estado padrão (ex: desligado)
         self.is_actuator = False # Por padrão, um dispositivo é um sensor
+        # [NOVO] Endereço do Gateway descoberto dinamicamente via Multicast.
+        # Preenchido por listen_for_discovery ao receber a mensagem GatewayDiscovery.
+        self.gateway_address = None
 
     def __str__(self):
         return f"ID: {self.device_id}, Tipo: {self.tipo}, Endereço: {self.ip}:{self.port}, Estado: {'Ligado' if self.estado else 'Desligado'}"
@@ -77,8 +80,27 @@ class Dispositivos:
 
         while True:
             data, address = multicast_socket.recvfrom(1024)
-            print(f"\n[{self.device_id}] Mensagem de descoberta recebida de {address}")
-            self.send_announcement(address)
+
+            # [MUDANÇA] Desserializa a mensagem Protobuf recebida.
+            # Antes: o gateway enviava bytes puros b'GATEWAY_DISCOVERY', sem parse.
+            # Agora: o gateway envia SmartCityMessage com gateway_discovery.data_port.
+            try:
+                msg = todolist_pb2.SmartCityMessage()
+                msg.ParseFromString(data)
+
+                if msg.HasField("gateway_discovery"):
+                    # Extrai IP dinamicamente do remetente (addr[0])
+                    # e Porta de Dados do campo Protobuf — sem nenhum hardcode
+                    gateway_ip = address[0]
+                    gateway_data_port = msg.gateway_discovery.data_port
+                    self.gateway_address = (gateway_ip, gateway_data_port)
+                    print(f"\n[{self.device_id}] Gateway descoberto em {self.gateway_address}")
+                    self.send_announcement(address)
+                else:
+                    print(f"[{self.device_id}] Mensagem Multicast ignorada (não é GatewayDiscovery).")
+
+            except Exception as e:
+                print(f"[{self.device_id}] Erro ao processar mensagem Multicast de {address}: {e}")
 
     def send_announcement(self, gateway_address):
         """Envia a mensagem de anúncio (Protocol Buffers) para o Gateway."""
@@ -141,19 +163,14 @@ class Continuos(Dispositivos):
     def iniciar(self):
         """Sobrescreve o método iniciar para sensores."""
         print(f"Iniciando sensor: {self.device_id}")
-        
-        # Sensores também precisam ser descobertos
+
+        # Inicia a thread de descoberta — ela vai preencher self.gateway_address
         discovery_thread = threading.Thread(target=self.listen_for_discovery, daemon=True)
         discovery_thread.start()
 
-        # A principal diferença: em vez de um servidor TCP,
-        # ele inicia uma rotina para enviar dados periodicamente.
-        # Vamos simular o Gateway estando em um endereço conhecido para enviar os dados.
-        # Na prática, o dispositivo descobriria o endereço do gateway da mesma forma que o gateway descobre o dispositivo.
-        # Por simplicidade, vamos usar um endereço fixo.
-        gateway_address_for_data = ('127.0.0.1', 5008) # Porta de dados do Gateway (exemplo)
-        
-        data_thread = threading.Thread(target=self.start_sending_data, args=(gateway_address_for_data,), daemon=True)
+        # [MUDANÇA] Não passa endereço hardcoded como argumento.
+        # start_sending_data aguarda self.gateway_address ser preenchido pela descoberta.
+        data_thread = threading.Thread(target=self.start_sending_data, daemon=True)
         data_thread.start()
 
         print(f"{self.device_id} iniciado. Pressione Ctrl+C para sair.")
@@ -163,20 +180,28 @@ class Continuos(Dispositivos):
         except KeyboardInterrupt:
             print(f"\nDesligando {self.device_id}.")
 
-    def start_sending_data(self, gateway_address):
-        """Envia dados simulados para o gateway a cada 15 segundos."""
+    def start_sending_data(self):
+        """Envia dados simulados para o gateway a cada 15 segundos via UDP.
+
+        [MUDANÇA] Aguarda self.gateway_address ser preenchido dinamicamente
+        por listen_for_discovery antes de começar a enviar qualquer dado.
+        Antes: recebia gateway_address como argumento fixo ('127.0.0.1', 5008).
+        """
         import random
 
+        # Bloqueia até o Gateway ser descoberto via Multicast
+        print(f"[{self.device_id}] Aguardando descoberta do Gateway para iniciar envio...")
+        while self.gateway_address is None:
+            time.sleep(2)
+
         udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        print(f"[{self.device_id}] Enviando dados para o Gateway em {gateway_address}")
-        
+        print(f"[{self.device_id}] Gateway encontrado. Enviando dados para {self.gateway_address}")
+
         while True:
             # Simula uma leitura de sensor
             if self.tipo == "TEMPERATURE_SENSOR":
-                # Gera uma temperatura aleatória entre 18.0 e 35.0
                 leitura = round(random.uniform(18.0, 35.0), 2)
             else:
-                # Gera um valor genérico para outros sensores
                 leitura = round(random.uniform(0.0, 100.0), 2)
 
             print(f"[{self.device_id}] Nova leitura: {leitura} {self.data_unit}")
@@ -189,8 +214,7 @@ class Continuos(Dispositivos):
             )
             response_message = todolist_pb2.SmartCityMessage(sensor_data=sensor_payload)
 
-            # Envia via UDP [cite: 21]
-            udp_socket.sendto(response_message.SerializeToString(), gateway_address)
-            
-            # Aguarda 15 segundos para a próxima leitura [cite: 24]
+            # [MUDANÇA] Usa self.gateway_address (dinâmico) em vez de endereço fixo
+            udp_socket.sendto(response_message.SerializeToString(), self.gateway_address)
+
             time.sleep(15)

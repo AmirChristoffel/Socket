@@ -36,11 +36,19 @@ message ActuatorCommand {
   // string camera_resolution = 4;
 }
 
+// [NOVO] Mensagem enviada pelo Gateway no Multicast de descoberta.
+// Inclui a porta UDP onde o Gateway escuta dados dos sensores,
+// eliminando qualquer endereço hardcoded nos dispositivos.
+message GatewayDiscovery {
+  int32 data_port = 1;
+}
+
 // Mensagem genérica que pode conter qualquer um dos tipos acima.
 message SmartCityMessage {
   oneof payload {
     DeviceAnnouncement announcement = 1;
     SensorData sensor_data = 2;
     ActuatorCommand command = 3;
+    GatewayDiscovery gateway_discovery = 4; // [NOVO] campo para o Multicast de descoberta
   }
 }
