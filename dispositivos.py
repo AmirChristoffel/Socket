@@ -207,10 +207,12 @@ class Continuos(Dispositivos):
             print(f"[{self.device_id}] Nova leitura: {leitura} {self.data_unit}")
 
             # Monta a mensagem Protobuf
+            # [NOVO] timestamp=int(time.time()) registra o momento exato da leitura
             sensor_payload = todolist_pb2.SensorData(
                 device_id=self.device_id,
                 value=leitura,
-                unit=self.data_unit
+                unit=self.data_unit,
+                timestamp=int(time.time())
             )
             response_message = todolist_pb2.SmartCityMessage(sensor_data=sensor_payload)
 
