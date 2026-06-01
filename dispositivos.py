@@ -222,3 +222,136 @@ class Continuos(Dispositivos):
             udp_socket.sendto(response_message.SerializeToString(), self.gateway_address)
 
             time.sleep(15)
+
+
+class SensorControlavel(Continuos):
+    """Sensor hibrido: envia leituras UDP periodicamente (como Continuos)
+    e aceita comandos TCP para ajuste de parametros operacionais (como Atuador).
+
+    Herda de Continuos para reaproveitar toda a logica de descoberta Multicast
+    e envio UDP. Adiciona um servidor TCP proprio para receber atualizacoes
+    de threshold vindas do Gateway/Cliente.
+    """
+
+    def __init__(self, tipo, data_unit=""):
+        super().__init__(tipo=tipo, data_unit=data_unit)
+        self.threshold = 50.0   # Limiar de alerta padrao
+        # Sobrescreve o valor de Continuos: is_actuator=True faz o Gateway
+        # registrar a porta TCP deste dispositivo e permitir comandos SET_STATE
+        self.is_actuator = True
+
+    # ------------------------------------------------------------------
+    # Servidor TCP exclusivo para comandos de configuracao
+    # ------------------------------------------------------------------
+
+    def _servidor_tcp(self):
+        """Aguarda comandos ActuatorCommand via TCP e atualiza parametros.
+
+        Porta alocada dinamicamente (bind em 0) e registrada em self.port
+        antes de qualquer anuncio de descoberta ser enviado ao Gateway.
+        """
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(('127.0.0.1', 0))
+        self.port = server.getsockname()[1]   # captura porta dinamica
+        server.listen(5)
+        print(f"[{self.device_id}] Servidor TCP de configuracao escutando em "
+              f"{self.ip}:{self.port}")
+
+        while True:
+            conn, addr = server.accept()
+            print(f"[{self.device_id}] Conexao TCP recebida de {addr}")
+            try:
+                data = conn.recv(1024)
+                if not data:
+                    continue
+
+                msg = todolist_pb2.SmartCityMessage()
+                msg.ParseFromString(data)
+
+                if msg.HasField("command"):
+                    cmd = msg.command
+
+                    # Atualiza threshold se um valor valido (> 0) foi enviado
+                    if cmd.threshold > 0:
+                        self.threshold = cmd.threshold
+                        print(f"[{self.device_id}] [ALERTA] Novo limite de qualidade "
+                              f"do ar definido para: {self.threshold} {self.data_unit}")
+
+                    # Liga / desliga o sensor via campo state
+                    if cmd.HasField("state") if False else True:
+                        # Protobuf3 nao tem HasField para scalars — verifica enabled
+                        pass
+
+                    # Ativa ou desativa via campo enabled (false = pausar envio)
+                    if not cmd.enabled and cmd.enabled != self.estado:
+                        self.estado = cmd.enabled
+                        estado_str = "ATIVO" if self.estado else "PAUSADO"
+                        print(f"[{self.device_id}] Estado alterado para: {estado_str}")
+
+            except Exception as e:
+                print(f"[{self.device_id}] Erro ao processar comando TCP: {e}")
+            finally:
+                conn.close()
+
+    # ------------------------------------------------------------------
+    # Sobrescrita de iniciar: TCP primeiro, depois fluxo normal do sensor
+    # ------------------------------------------------------------------
+
+    def iniciar(self):
+        """Inicia o servidor TCP de configuracao e em seguida o fluxo de Continuos.
+
+        A ordem importa: self.port deve estar preenchido antes que
+        listen_for_discovery dispare send_announcement com a porta TCP.
+        """
+        print(f"Iniciando sensor controlavel: {self.device_id}")
+
+        tcp_thread = threading.Thread(target=self._servidor_tcp, daemon=True)
+        tcp_thread.start()
+
+        # Garante que bind() e a captura de self.port ocorreram antes
+        # de super().iniciar() iniciar a descoberta Multicast
+        time.sleep(0.5)
+
+        # Delega descoberta Multicast + envio UDP continuo para Continuos
+        super().iniciar()
+
+    # ------------------------------------------------------------------
+    # Sobrescrita de start_sending_data: adiciona verificacao de threshold
+    # ------------------------------------------------------------------
+
+    def start_sending_data(self):
+        """Envia leituras de qualidade do ar via UDP e alerta quando
+        o valor gerado ultrapassar self.threshold."""
+        import random
+
+        print(f"[{self.device_id}] Aguardando descoberta do Gateway...")
+        while self.gateway_address is None:
+            time.sleep(2)
+
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print(f"[{self.device_id}] Enviando dados para {self.gateway_address}")
+
+        while True:
+            # Intervalo realista para material particulado (µg/m³): 0 a 150
+            leitura = round(random.uniform(0.0, 150.0), 2)
+
+            # Verificacao de threshold — alerta local no terminal do sensor
+            if leitura > self.threshold:
+                print(f"[{self.device_id}] [PERIGO] Qualidade do ar {leitura} "
+                      f"ultrapassou o limite de {self.threshold} {self.data_unit}!")
+            else:
+                print(f"[{self.device_id}] Leitura: {leitura} {self.data_unit} "
+                      f"(limite: {self.threshold})")
+
+            # Monta e envia mensagem Protobuf via UDP
+            sensor_payload = todolist_pb2.SensorData(
+                device_id=self.device_id,
+                value=leitura,
+                unit=self.data_unit,
+                timestamp=int(time.time())
+            )
+            msg = todolist_pb2.SmartCityMessage(sensor_data=sensor_payload)
+            udp_socket.sendto(msg.SerializeToString(), self.gateway_address)
+
+            time.sleep(15)
