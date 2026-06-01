@@ -17,6 +17,7 @@ from protos import todolist_pb2
 MULTICAST_GROUP    = '224.1.1.1'
 MULTICAST_PORT     = 5007
 GATEWAY_DATA_PORT  = 5008   # Porta UDP unificada: anúncios + dados de sensores
+GATEWAY_TCP_PORT   = 5009   # Porta TCP exclusiva para o Cliente Analítico
 DISCOVERY_INTERVAL = 5      # Segundos entre cada broadcast de descoberta Multicast
 
 
@@ -138,7 +139,80 @@ class SmartCityGateway:
               f"{sensor_data.value:.2f} {sensor_data.unit}")
 
     # -----------------------------------------------------------------------
-    # 4. MÉTODO DE INICIALIZAÇÃO (start)
+    # 4. SERVIDOR TCP — escuta o Cliente Analítico
+    # -----------------------------------------------------------------------
+
+    def _thread_servidor_tcp(self):
+        """Servidor TCP que aceita conexões do Cliente Analítico na GATEWAY_TCP_PORT.
+
+        Para cada cliente aceito, delega o atendimento a _handle_client()
+        em uma thread separada — o loop de accept() nunca fica bloqueado.
+        """
+        tcp_server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # SO_REUSEADDR evita "Address already in use" ao reiniciar o Gateway
+        tcp_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcp_server_socket.bind(('', GATEWAY_TCP_PORT))
+        tcp_server_socket.listen(5)  # fila de até 5 conexões pendentes
+        print(f"[TCP] Servidor escutando na porta {GATEWAY_TCP_PORT} (Cliente Analitico)")
+
+        while True:
+            conn, addr = tcp_server_socket.accept()
+            print(f"[TCP] Cliente conectado: {addr}")
+            # Thread daemon: morre automaticamente se o Gateway encerrar
+            threading.Thread(
+                target=self._handle_client,
+                args=(conn, addr),
+                daemon=True
+            ).start()
+
+    def _handle_client(self, conn, addr):
+        """Processa uma única conexão de cliente TCP.
+
+        Fluxo:
+          1. Recebe os bytes enviados pelo cliente
+          2. Desserializa em SmartCityMessage (Protobuf)
+          3. Verifica se é um ClientRequest e despacha pelo campo 'command'
+          4. Serializa e envia a GatewayResponse de volta
+          5. Fecha a conexão
+        """
+        try:
+            data = conn.recv(4096)
+            if not data:
+                return
+
+            msg = todolist_pb2.SmartCityMessage()
+            msg.ParseFromString(data)
+
+            if not msg.HasField("client_request"):
+                print(f"[TCP] Pacote de {addr} ignorado (nao e ClientRequest).")
+                return
+
+            request = msg.client_request
+            print(f"[TCP] Comando recebido de {addr}: '{request.command}'")
+
+            # --- Despachante de comandos ---
+            response_msg = todolist_pb2.SmartCityMessage()
+
+            if request.command == "PING":
+                response_msg.gateway_response.status  = "SUCCESS"
+                response_msg.gateway_response.message = "PONG"
+
+            else:
+                # Comando não reconhecido — resposta padrao de erro
+                response_msg.gateway_response.status  = "ERROR"
+                response_msg.gateway_response.message = f"Comando desconhecido: '{request.command}'"
+
+            conn.sendall(response_msg.SerializeToString())
+            print(f"[TCP] Resposta enviada para {addr}: "
+                  f"status={response_msg.gateway_response.status}")
+
+        except Exception as e:
+            print(f"[TCP] Erro ao atender {addr}: {e}")
+        finally:
+            conn.close()  # garante fechamento mesmo em caso de excecao
+
+    # -----------------------------------------------------------------------
+    # 5. MÉTODO DE INICIALIZAÇÃO (start)
     # -----------------------------------------------------------------------
 
     def start(self):
@@ -161,12 +235,12 @@ class SmartCityGateway:
             name="UDP-Receiver"
         ).start()
 
-        # (Próximo passo) Servidor TCP para o Cliente Analítico
-        # threading.Thread(
-        #     target=self._thread_servidor_tcp,
-        #     daemon=True,
-        #     name="TCP-Server"
-        # ).start()
+        # Servidor TCP: aceita conexoes do Cliente Analitico na porta 5009
+        threading.Thread(
+            target=self._thread_servidor_tcp,
+            daemon=True,
+            name="TCP-Server"
+        ).start()
 
         print("[Gateway] Em execução. Pressione Ctrl+C para sair.\n")
         try:
