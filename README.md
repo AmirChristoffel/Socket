@@ -40,7 +40,7 @@ API (FastAPI :8000) ──SSE──► Dashboard (Next.js :3000)
 | Ferramenta | Versão | Instalação |
 |---|---|---|
 | Python | 3.11+ | python.org |
-| pip packages | — | `pip install protobuf fastapi "uvicorn[standard]"` |
+| pip packages | — | `pip install -r requirements.txt` |
 | Node.js | 18+ | nodejs.org |
 | Rust / Cargo | stable | `winget install Rustlang.Rustup` (só para o sensor Rust) |
 
@@ -54,7 +54,7 @@ O dashboard gerencia todos os processos internamente via `api.py`.
 
 ```bash
 # 1. Instalar dependências Python
-pip install protobuf fastapi "uvicorn[standard]"
+pip install -r requirements.txt
 
 # 2. Terminal A — API bridge
 python api.py
