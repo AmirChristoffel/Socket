@@ -1,0 +1,15 @@
+# Logs gerados em runtime pela API
+logs/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# VS Code
+.vscode/

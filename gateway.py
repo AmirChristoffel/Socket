@@ -311,16 +311,13 @@ class SmartCityGateway:
     # -----------------------------------------------------------------------
 
     def _thread_monitor_falhas(self):
-        """Verifica a cada 10 s se algum sensor parou de enviar dados.
+        """Verifica a cada 10 s se algum dispositivo foi desconectado.
 
-        Lógica:
-          - Sensores enviam leituras a cada 15 s.
-          - Se last_seen > 35 s atrás (15 s de intervalo + 20 s de margem),
-            considera o sensor morto e o remove de active_devices.
-          - Atuadores não são verificados aqui: a detecção deles ocorre
-            no momento do repasse em _cmd_set_state (falha lazy).
+        Sensores (UDP): removidos se last_seen > TIMEOUT_SENSOR segundos.
+        Atuadores (TCP): sondados com uma conexão rápida — removidos se
+        a porta recusar conexão (processo foi encerrado).
         """
-        TIMEOUT_SENSOR = 35  # segundos sem dados → sensor considerado offline
+        TIMEOUT_SENSOR = 25  # segundos sem dados → sensor considerado offline
 
         print("[Monitor] Thread de deteccao de falhas iniciada (intervalo=10s).")
         while True:
@@ -329,18 +326,29 @@ class SmartCityGateway:
             removidos = []
 
             with self.lock:
-                for device_id in list(self.active_devices.keys()):
-                    info = self.active_devices[device_id]
-                    tempo_inativo = agora - info['last_seen']
+                snapshot = list(self.active_devices.items())
 
-                    if not info['is_actuator'] and tempo_inativo > TIMEOUT_SENSOR:
-                        del self.active_devices[device_id]
-                        removidos.append(device_id)
+            for device_id, info in snapshot:
+                if not info['is_actuator']:
+                    # Sensor: checar tempo desde última leitura UDP
+                    if agora - info['last_seen'] > TIMEOUT_SENSOR:
+                        with self.lock:
+                            self.active_devices.pop(device_id, None)
+                        removidos.append((device_id, "parou de enviar dados"))
+                else:
+                    # Atuador: prova TCP rápida na porta anunciada
+                    if info['port'] > 0:
+                        try:
+                            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                                s.settimeout(1)
+                                s.connect((info['ip'], info['port']))
+                        except OSError:
+                            with self.lock:
+                                self.active_devices.pop(device_id, None)
+                            removidos.append((device_id, "porta TCP inacessivel"))
 
-            # Imprime alertas fora do lock para não segurá-lo durante I/O
-            for device_id in removidos:
-                print(f"\n[ALERTA] Sensor '{device_id}' parou de enviar dados "
-                      f"e foi removido da lista de ativos!\n")
+            for device_id, motivo in removidos:
+                print(f"\n[ALERTA] '{device_id}' removido ({motivo}).\n")
 
     # -----------------------------------------------------------------------
     # 6. MÉTODO DE INICIALIZAÇÃO (start)
