@@ -13,6 +13,7 @@ Sistema IoT distribuído onde dispositivos heterogêneos se registram automatica
 | **Atuador** | `dispositivos.py → Atuador` | Recebe comandos TCP (ligar/desligar); não envia dados |
 | **Sensor Controlável** | `dispositivos.py → SensorControlavel` | Híbrido: envia UDP **e** aceita TCP (ajuste de threshold) |
 | **Cliente Analítico** | `cliente.py` | Lista dispositivos, consulta médias, envia comandos |
+| **Sensor de Temperatura (Rust)** | `dispositivo_rust/src/main.rs` | Sensor contínuo em Rust; demonstra interoperabilidade via Protobuf |
 
 **Hierarquia:** `Dispositivos` → `Atuador` / `Continuos` → `SensorControlavel`
 
@@ -76,6 +77,10 @@ python gateway.py
 python -c "from dispositivos import Continuos; Continuos('TEMPERATURE_SENSOR','Celsius').iniciar()"
 python -c "from dispositivos import SensorControlavel; SensorControlavel('AIR_QUALITY_SENSOR','µg/m³').iniciar()"
 python -c "from dispositivos import Atuador; Atuador('LAMP_POST').iniciar()"
+
+# 2b. Sensor de temperatura em Rust (opcional — substitui ou complementa o sensor Python)
+cd dispositivo_rust
+cargo run
 
 # 3. Cliente (por último)
 python cliente.py

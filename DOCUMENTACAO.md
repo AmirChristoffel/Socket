@@ -12,6 +12,7 @@
 3. [Decisões de Design — O "Porquê"](#3-decisões-de-design--o-porquê)
 4. [Resiliência e Tratamento de Falhas](#4-resiliência-e-tratamento-de-falhas)
 5. [Guia de Execução Passo a Passo](#5-guia-de-execução-passo-a-passo)
+6. [Sensor de Temperatura em Rust](#6-sensor-de-temperatura-em-rust)
 
 ---
 
@@ -30,6 +31,7 @@ O projeto implementa um sistema IoT distribuído para uma **Cidade Inteligente**
 | **Atuador** | `dispositivos.py` → `Atuador` | Recebe comandos TCP (ligar/desligar); não envia dados |
 | **Sensor Controlável** | `dispositivos.py` → `SensorControlavel` | Híbrido: envia leituras UDP **e** aceita comandos TCP (ex.: ajuste de threshold) |
 | **Cliente Analítico** | `cliente.py` | Interface do operador: lista dispositivos, consulta médias, envia comandos |
+| **Sensor de Temperatura (Rust)** | `dispositivo_rust/src/main.rs` | Sensor contínuo implementado em Rust; demonstra interoperabilidade de linguagens via Protobuf |
 
 ### Hierarquia de Classes dos Dispositivos
 
@@ -421,9 +423,14 @@ SD_Socktes/
 ├── gateway.py
 ├── dispositivos.py
 ├── cliente.py
-└── protos/
-    ├── todolist.proto
-    └── todolist_pb2.py   ← gerado pelo compilador protoc
+├── protos/
+│   ├── todolist.proto
+│   └── todolist_pb2.py   ← gerado pelo compilador protoc
+└── dispositivo_rust/
+    ├── Cargo.toml
+    ├── build.rs           ← compila o .proto em tempo de build
+    └── src/
+        └── main.rs        ← sensor de temperatura em Rust
 ```
 
 ### Compilar o Protobuf (se necessário)
@@ -608,4 +615,68 @@ Com o Terminal 4 encerrado, ir ao Cliente e tentar `SET_STATE` no atuador morto:
 
 ---
 
-*Documentação gerada com base na análise dos arquivos: `gateway.py`, `dispositivos.py`, `cliente.py` e `protos/todolist.proto`.*
+---
+
+## 6. Sensor de Temperatura em Rust
+
+### Objetivo
+
+O `dispositivo_rust` implementa o mesmo papel de um `Sensor Contínuo` Python — mas em **Rust**. Seu propósito principal é demonstrar que o sistema é **agnóstico de linguagem**: qualquer processo que fale o mesmo protocolo (UDP + Protobuf) integra-se ao Gateway sem modificações, independentemente da linguagem em que foi escrito.
+
+### O que o sensor faz
+
+1. **Entra no grupo Multicast** `224.1.1.1:5007` e aguarda o broadcast de descoberta do Gateway.
+2. **Ao detectar o Gateway**, envia um `DeviceAnnouncement` identificando-se como `TEMPERATURE_SENSOR` via UDP Unicast.
+3. **Inicia o envio de telemetria** a cada 15 segundos: temperatura simulada entre 20 °C e 30 °C, oscilando com base no timestamp Unix.
+4. **Se a conexão ao Gateway falhar**, retorna ao loop de descoberta e aguarda o próximo broadcast.
+
+### Pré-requisitos
+
+| Ferramenta | Instalação |
+|---|---|
+| Rust (rustc + cargo) | `winget install Rustlang.Rustup` (reiniciar o terminal após) |
+| Compilador Protobuf (`protoc`) | `winget install Google.Protobuf` |
+
+> O `protoc` é necessário porque o `build.rs` compila o arquivo `.proto` automaticamente durante o `cargo build`.
+
+### Como executar
+
+```powershell
+# Em um terminal separado, com o Gateway já rodando
+cd dispositivo_rust
+cargo run
+```
+
+O `cargo` baixa todas as dependências automaticamente na primeira execução. A compilação inicial demora ~1 minuto; execuções subsequentes são instantâneas.
+
+### Saída esperada
+
+```
+=== Dispositivo IoT em Rust Iniciado ===
+Device ID: rust_temp_sensor_71b4
+[Multicast] Aguardando broadcast de descoberta do Gateway (porta 5007)...
+
+[Discovery] Gateway detectado em 127.0.0.1:5007
+[Discovery] Porta de dados do Gateway: 5008
+[Registro] Anuncio de dispositivo enviado para o Gateway.
+[Telemetria] Iniciando envio de leituras a cada 15 segundos...
+[Telemetria] Enviado: rust_temp_sensor_71b4 = 24.6 Celsius (timestamp: 1749123456)
+[Telemetria] Enviado: rust_temp_sensor_71b4 = 24.7 Celsius (timestamp: 1749123471)
+```
+
+No **Terminal do Gateway**, o sensor aparece como qualquer outro dispositivo:
+
+```
+[UDP] + Dispositivo registrado: rust_temp_sensor_71b4
+      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:XXXX
+
+[UDP] [sensor] Leitura de 'rust_temp_sensor_71b4': 24.6 Celsius
+```
+
+### Por que Rust demonstra interoperabilidade?
+
+O Gateway não tem nenhum conhecimento de que o sensor é escrito em Rust. Ele recebe um pacote UDP binário, desserializa com Protobuf e processa normalmente. O mesmo vale para qualquer outra linguagem (C, Go, Java, etc.) que implemente o mesmo schema `.proto`. Isso ilustra uma propriedade fundamental de sistemas distribuídos: **o contrato é o protocolo, não a implementação**.
+
+---
+
+*Documentação gerada com base na análise dos arquivos: `gateway.py`, `dispositivos.py`, `cliente.py`, `protos/todolist.proto` e `dispositivo_rust/src/main.rs`.*
