@@ -1,682 +1,614 @@
-# Documentação Técnica — Gateway Inteligente: Cidade Inteligente (SD)
+# Documentação Técnica — Smart City IoT: Gateway Inteligente (SD)
 
-> **Disciplina:** Sistemas Distribuídos  
-> **Objetivo:** Base de estudo para defesa oral — arquitetura, decisões de design e resiliência do sistema.
+> **Disciplina:** Sistemas Distribuídos
+> **Objetivo:** Referência técnica completa da arquitetura, protocolos, componentes e decisões de design.
 
 ---
 
 ## Índice
 
-1. [Visão Geral do Sistema](#1-visão-geral-do-sistema)
-2. [Arquitetura de Rede e Mensageria](#2-arquitetura-de-rede-e-mensageria)
-3. [Decisões de Design — O "Porquê"](#3-decisões-de-design--o-porquê)
-4. [Resiliência e Tratamento de Falhas](#4-resiliência-e-tratamento-de-falhas)
-5. [Guia de Execução Passo a Passo](#5-guia-de-execução-passo-a-passo)
-6. [Sensor de Temperatura em Rust](#6-sensor-de-temperatura-em-rust)
+1. [Visão Geral](#1-visão-geral)
+2. [Estrutura de Arquivos](#2-estrutura-de-arquivos)
+3. [Arquitetura de Rede e Protocolos](#3-arquitetura-de-rede-e-protocolos)
+4. [Componentes — Código e Responsabilidades](#4-componentes--código-e-responsabilidades)
+   - 4.1 [gateway.py](#41-gatewaypy)
+   - 4.2 [dispositivos.py](#42-dispositivospy)
+   - 4.3 [cliente.py](#43-clientepy)
+   - 4.4 [api.py — Bridge REST/SSE](#44-apipy--bridge-restsse)
+   - 4.5 [dispositivo_rust/src/main.rs](#45-dispositivo_rustsrcmainrs)
+   - 4.6 [Dashboard (Next.js)](#46-dashboard-nextjs)
+5. [Protocol Buffers — Schema e Mensagens](#5-protocol-buffers--schema-e-mensagens)
+6. [Comandos do Gateway (TCP)](#6-comandos-do-gateway-tcp)
+7. [API REST — Referência de Endpoints](#7-api-rest--referência-de-endpoints)
+8. [SSE — Stream de Eventos em Tempo Real](#8-sse--stream-de-eventos-em-tempo-real)
+9. [Decisões de Design](#9-decisões-de-design)
+10. [Detecção de Falhas e Tolerância](#10-detecção-de-falhas-e-tolerância)
+11. [Configuração e Variáveis de Ambiente](#11-configuração-e-variáveis-de-ambiente)
+12. [Guia de Execução](#12-guia-de-execução)
 
 ---
 
-## 1. Visão Geral do Sistema
+## 1. Visão Geral
 
-### Objetivo
+O sistema implementa uma rede IoT para cidade inteligente com três camadas:
 
-O projeto implementa um sistema IoT distribuído para uma **Cidade Inteligente**, onde dispositivos heterogêneos (sensores de temperatura, qualidade do ar, câmeras, postes, semáforos) se registram automaticamente em um Gateway centralizado. Um Cliente Analítico pode, a qualquer momento, consultar o estado da rede e enviar comandos de controle — tudo isso sem configuração manual de endereços.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  CAMADA DE VISUALIZAÇÃO                                         │
+│  Dashboard Next.js :3000  ←──SSE──  api.py FastAPI :8000        │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │ HTTP / TCP 5009
+┌──────────────────────────────▼──────────────────────────────────┐
+│  CAMADA DE COORDENAÇÃO                                          │
+│                  Gateway (gateway.py)                           │
+│  UDP Multicast 5007 ◄──► UDP Unicast 5008 ◄──► TCP 5009        │
+└───────────┬───────────────────────────────────────┬─────────────┘
+            │ UDP Multicast                          │ TCP dinâmico
+┌───────────▼───────────────────────────────────────▼─────────────┐
+│  CAMADA DE DISPOSITIVOS                                         │
+│  Sensores (UDP apenas)        Atuadores (TCP bidirecional)      │
+│  • Continuos (Python)         • Atuador (Python)                │
+│  • Rust sensor                • SensorControlavel (Python)      │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Componentes Principais
+**Fluxo de dados resumido:**
+1. Gateway envia broadcasts UDP Multicast (:5007) a cada 5 s
+2. Dispositivos respondem com anúncio UDP para :5008
+3. Sensores enviam leituras UDP para :5008 a cada 15 s
+4. Cliente/API consulta e comanda via TCP :5009
+5. Gateway abre TCP dinâmico para comandar atuadores
 
-| Componente | Arquivo | Papel |
+---
+
+## 2. Estrutura de Arquivos
+
+```
+SD_Socktes/
+├── .gitignore
+├── README.md               Guia rápido de execução
+├── DOCUMENTACAO.md         Esta documentação
+│
+├── gateway.py              Gateway: discovery, UDP recv, TCP server, fault monitor
+├── dispositivos.py         Classes base dos dispositivos Python
+├── cliente.py              Cliente analítico CLI
+├── api.py                  Bridge FastAPI: subprocessos + proxy Gateway + SSE
+│
+├── protos/
+│   ├── todolist.proto      Schema Protobuf (define todas as mensagens)
+│   └── todolist_pb2.py     Código Python gerado pelo protoc
+│
+├── dispositivo_rust/
+│   ├── Cargo.toml          Dependências Rust (prost, tokio, etc.)
+│   ├── build.rs            Compila o .proto durante cargo build
+│   └── src/main.rs         Sensor de temperatura em Rust
+│
+└── dashboard/
+    ├── app/page.tsx        UI principal (componentes React)
+    ├── hooks/useSSE.ts     Hook para consumir o stream SSE da API
+    └── lib/api.ts          Funções de acesso à API REST + tipos TypeScript
+```
+
+---
+
+## 3. Arquitetura de Rede e Protocolos
+
+### Mapa de portas
+
+| Porta | Protocolo | Direção | Propósito |
+|---|---|---|---|
+| **5007** | UDP Multicast | Gateway → Todos | Broadcast de descoberta (`GatewayDiscovery`) |
+| **5008** | UDP Unicast | Dispositivos → Gateway | Anúncios (`DeviceAnnouncement`) + leituras (`SensorData`) |
+| **5009** | TCP | Cliente → Gateway | Comandos analíticos (`ClientRequest` / `GatewayResponse`) |
+| **dinâmica** | TCP | Gateway → Atuador | Comandos de controle (`ActuatorCommand`) |
+| **8000** | HTTP/SSE | Dashboard → API | REST + Server-Sent Events |
+| **3000** | HTTP | Navegador → Dashboard | Interface Next.js |
+
+### Por que cada protocolo
+
+**UDP Multicast (:5007) — Descoberta**
+- Uma única transmissão alcança todos os dispositivos presentes na rede local
+- Nenhum endereço precisa ser configurado antecipadamente
+- TTL=2 confina o tráfego à LAN
+- Gateway envia a cada 5 s: dispositivos novos se registram sem intervenção manual
+
+**UDP Unicast (:5008) — Telemetria**
+- Dados de sensor são descartáveis: se um pacote se perde, o próximo chega em 15 s
+- Sem overhead de conexão — o Gateway não mantém estado por sensor
+- Uma porta unificada recebe tanto anúncios quanto leituras (campo `oneof` do Protobuf faz o roteamento)
+
+**TCP (:5009) — Comandos do cliente**
+- Entrega garantida por retransmissão automática (ACK)
+- Ordem preservada — crítico para mensagens Protobuf binárias
+- Falha de conexão é imediatamente visível (`ConnectionRefusedError`)
+
+**TCP dinâmico — Controle de atuadores**
+- Cada dispositivo faz `bind('127.0.0.1', 0)` — o SO aloca a porta disponível
+- A porta é capturada com `getsockname()[1]` e enviada no `DeviceAnnouncement.port`
+- Gateway usa essa porta para enviar `ActuatorCommand` diretamente ao dispositivo
+
+---
+
+## 4. Componentes — Código e Responsabilidades
+
+### 4.1 gateway.py
+
+**Classe:** `SmartCityGateway`
+
+**Estruturas de estado (compartilhadas entre threads):**
+```python
+self.active_devices = {}    # device_id → {type, ip, port, is_actuator, last_seen, state}
+self.sensor_history = []    # lista plana de {device_id, value, unit, timestamp}
+self.lock = threading.Lock()
+```
+
+**Threads:**
+
+| Thread | Nome | Responsabilidade |
 |---|---|---|
-| **Gateway Inteligente** | `gateway.py` | Cérebro central: descobre dispositivos, armazena leituras, atende o cliente analítico |
-| **Sensor Contínuo** | `dispositivos.py` → `Continuos` | Envia leituras periódicas via UDP; não aceita comandos |
-| **Atuador** | `dispositivos.py` → `Atuador` | Recebe comandos TCP (ligar/desligar); não envia dados |
-| **Sensor Controlável** | `dispositivos.py` → `SensorControlavel` | Híbrido: envia leituras UDP **e** aceita comandos TCP (ex.: ajuste de threshold) |
-| **Cliente Analítico** | `cliente.py` | Interface do operador: lista dispositivos, consulta médias, envia comandos |
-| **Sensor de Temperatura (Rust)** | `dispositivo_rust/src/main.rs` | Sensor contínuo implementado em Rust; demonstra interoperabilidade de linguagens via Protobuf |
+| `_thread_multicast_discovery` | `Discovery-Broadcaster` | Envia `GatewayDiscovery` via UDP Multicast a cada 5 s |
+| `_thread_ouvir_udp` | `UDP-Receiver` | Recebe anúncios e leituras na porta 5008; roteia para handlers |
+| `_thread_servidor_tcp` | `TCP-Server` | Aceita conexões TCP na porta 5009; delega para `_handle_client` em nova thread |
+| `_thread_monitor_falhas` | `Fault-Monitor` | A cada 10 s: remove sensores sem dados (25 s) e testa conectividade de atuadores (TCP 1 s) |
 
-### Hierarquia de Classes dos Dispositivos
+**Handlers UDP:**
+- `_registrar_dispositivo(announcement)` — insere ou atualiza `active_devices`; preserva `state` existente em re-registro
+- `_armazenar_leitura(sensor_data)` — adiciona à `sensor_history`; atualiza `last_seen` do sensor
+
+**Despachante TCP (`_handle_client`):**
+Recebe um `ClientRequest`, identifica o campo `command` e chama o auxiliar adequado:
+
+```
+PING        → "PONG"
+LIST_DEVICES → _cmd_list_devices()
+GET_AVG      → _cmd_get_avg(target_device_id)
+GET_HISTORY  → _cmd_get_history(limit=20)
+SET_STATE    → _cmd_set_state(target_device_id, new_state)
+```
+
+**Monitor de falhas (`_thread_monitor_falhas`):**
+```python
+TIMEOUT_SENSOR = 25  # segundos sem pacote UDP → sensor removido
+
+for each device in snapshot:
+    if sensor:   remove if time.time() - last_seen > 25
+    if actuator: tenta TCP connect(timeout=1s); remove se OSError
+```
+
+---
+
+### 4.2 dispositivos.py
+
+**Hierarquia de classes:**
 
 ```
 Dispositivos (base)
+│  device_id (uuid4[:4]), tipo, ip, port=0, estado, is_actuator=False, gateway_address=None
+│  iniciar() → start_tcp_server() + listen_for_discovery()
+│  listen_for_discovery() → multicast join OU GATEWAY_ADDR env var
+│  send_announcement() → DeviceAnnouncement UDP para o Gateway
 │
-├── Atuador           ← is_actuator = True  | aceita TCP, não envia dados
+├── Atuador (is_actuator=True)
+│   handle_connection() → recebe ActuatorCommand, atualiza self.estado
 │
-└── Continuos         ← is_actuator = False | envia UDP, não aceita TCP
+└── Continuos (is_actuator=False)
+    iniciar() → listen_for_discovery() + start_sending_data() (sem TCP server)
+    start_sending_data() → SensorData UDP a cada 15 s
     │
-    └── SensorControlavel ← is_actuator = True | envia UDP + aceita TCP (híbrido)
+    └── SensorControlavel (is_actuator=True)
+        _servidor_tcp() → recebe ActuatorCommand (threshold + estado)
+        iniciar() → _servidor_tcp() + super().iniciar()
+        start_sending_data() → igual Continuos + alerta de threshold
 ```
+
+**`listen_for_discovery` — fallback GATEWAY_ADDR:**
+```python
+gateway_env = os.environ.get("GATEWAY_ADDR")
+if gateway_env:
+    ip, port = gateway_env.split(":")
+    self.gateway_address = (ip, int(port))
+    self.send_announcement(self.gateway_address)
+    return   # pula o bind multicast
+# caso contrário: join ao grupo 224.1.1.1:5007 e aguarda
+```
+Isso resolve o `WinError 10013` (acesso negado ao bind multicast) quando múltiplos processos rodam no mesmo Windows.
 
 ---
 
-## 2. Arquitetura de Rede e Mensageria
+### 4.3 cliente.py
 
-### Mapa de Protocolos e Portas
+Cliente analítico em modo texto. Opera em um loop de menu.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        GATEWAY INTELIGENTE                          │
-│                          (gateway.py)                               │
-│                                                                     │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌───────────────────┐  │
-│  │ Thread Discovery │  │  Thread UDP Recv  │  │  Thread TCP Server│  │
-│  │   Broadcaster    │  │  (anúncios+dados) │  │ (cliente analítico│  │
-│  │   Porta 5007     │  │    Porta 5008     │  │    Porta 5009)    │  │
-│  └────────┬─────────┘  └────────▲──────────┘  └────────▲──────────┘  │
-│           │ UDP Multicast        │ UDP Unicast           │ TCP         │
-└───────────┼──────────────────────┼───────────────────────┼────────────┘
-            │                      │                       │
-    ┌───────▼──────────┐   ┌───────┴──────────┐   ┌───────┴──────────┐
-    │  TODOS os        │   │  Dispositivos    │   │  Cliente         │
-    │  Dispositivos    │   │  (anúncio +      │   │  Analítico       │
-    │  (grupo multicast│   │   sensor data)   │   │  (cliente.py)    │
-    │  224.1.1.1:5007) │   │  → 127.0.0.1:5008│   │  → 127.0.0.1:5009│
-    └──────────────────┘   └──────────────────┘   └──────────────────┘
+**Função central:**
+```python
+def enviar_comando(req: ClientRequest) -> Optional[str]:
+    # Abre TCP para 127.0.0.1:5009
+    # Serializa SmartCityMessage(client_request=req)
+    # Recebe GatewayResponse e retorna .message
+    # Em falha: retorna None (sem crash — exceções capturadas)
 ```
 
-### 2.1 UDP Multicast — Descoberta (Porta 5007)
+**Timeout:** `s.settimeout(5)` — nunca trava indefinidamente.
 
-**O que é:** O Gateway envia periodicamente uma mensagem `GatewayDiscovery` para o grupo multicast `224.1.1.1:5007`. Todos os dispositivos que fazem parte desse grupo recebem a mensagem simultaneamente, sem que o Gateway precise conhecer o endereço de nenhum deles.
+---
 
-**Por que UDP Multicast?**
+### 4.4 api.py — Bridge REST/SSE
 
-- **1 → N sem overhead:** Uma única transmissão do Gateway alcança todos os dispositivos presentes na rede local. Com TCP ou UDP Unicast, seria necessário manter uma lista de endereços previamente conhecidos — impossível em um ambiente dinâmico onde dispositivos entram e saem a qualquer momento.
-- **Baixa latência e sem conexão:** A descoberta não requer que o dispositivo esteja "esperando" uma conexão específica — basta pertencer ao grupo multicast.
-- **TTL = 2:** O campo `IP_MULTICAST_TTL` foi configurado para 2 saltos de roteador, confinando a descoberta à rede local e evitando propagação desnecessária.
+**FastAPI** rodando na porta 8000. Três responsabilidades:
+
+#### 4.4.1 Gestão de subprocessos
+
+Define 7 **slots** fixos com nome, comando e diretório de trabalho:
+
+| Slot | Label | Comando |
+|---|---|---|
+| `gateway` | Gateway Inteligente | `python gateway.py` |
+| `sensor_temperatura_py` | Sensor de Temperatura (Python) | `Continuos('TEMPERATURE_SENSOR','Celsius').iniciar()` |
+| `sensor_ar` | Sensor de Qualidade do Ar | `SensorControlavel('AIR_QUALITY_SENSOR','ug/m3').iniciar()` |
+| `poste` | Poste de Luz | `Atuador('LAMP_POST').iniciar()` |
+| `semaforo` | Semáforo | `Atuador('TRAFFIC_LIGHT').iniciar()` |
+| `camera` | Câmera | `Atuador('CAMERA').iniciar()` |
+| `sensor_rust` | Sensor de Temperatura (Rust) | `cargo run` em `dispositivo_rust/` |
+
+Para cada slot não-`gateway`, `GATEWAY_ADDR=127.0.0.1:5008` é injetado no ambiente para evitar o bind multicast:
+```python
+if slot != "gateway":
+    env["GATEWAY_ADDR"] = "127.0.0.1:5008"
+```
+
+`stdout` e `stderr` de cada processo são redirecionados para `logs/{slot}.log`.
+
+#### 4.4.2 Proxy para o Gateway
+
+Helper `_tcp(req)` abre TCP para `127.0.0.1:5009`, envia o `ClientRequest` e retorna a string da resposta (ou `None` em falha, timeout=3 s).
+
+Dois parsers de string:
+- `_parse_devices(raw)` — converte saída de `LIST_DEVICES` em lista de dicts
+- `_parse_readings(raw)` — converte saída de `GET_HISTORY` (`device_id=x | value=y | unit=z | ts=w`) em lista de dicts
+
+#### 4.4.3 SSE — Stream de eventos
+
+`GET /events` retorna um `StreamingResponse` com media type `text/event-stream`. A cada 3 s emite:
+- `event: processes` — status de todos os slots (running true/false)
+- `event: gateway` — se o Gateway responde ao PING
+- `event: devices` — lista de dispositivos (só se gateway online)
+- `event: readings` — últimas 20 leituras do GET_HISTORY (só se gateway online)
+
+---
+
+### 4.5 dispositivo_rust/src/main.rs
+
+Implementa o mesmo papel de um `Continuos` Python em Rust, demonstrando interoperabilidade por Protobuf.
 
 **Fluxo:**
-```
-Gateway → sendto(224.1.1.1:5007, GatewayDiscovery{data_port=5008})
-Dispositivo ← recvfrom → extrai gateway_ip + data_port → envia anúncio para 5008
-```
+1. Verifica `GATEWAY_ADDR` env var — se presente, usa diretamente; caso contrário, faz join multicast e aguarda `GatewayDiscovery`
+2. Envia `DeviceAnnouncement` (`TEMPERATURE_SENSOR`, `is_actuator=false`)
+3. Loop de telemetria a cada 15 s: temperatura simulada (20–30 °C), envia `SensorData` via UDP
 
-**Trecho de código relevante (`gateway.py:57-71`):**
-```python
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-msg.discovery.data_port = GATEWAY_DATA_PORT  # comunica onde se registrar
-sock.sendto(serialized, (MULTICAST_GROUP, MULTICAST_PORT))
-```
+`build.rs` compila `protos/todolist.proto` automaticamente via `prost-build` durante o `cargo build`.
 
 ---
 
-### 2.2 UDP Unicast — Envio Contínuo de Sensores (Porta 5008)
+### 4.6 Dashboard (Next.js)
 
-**O que é:** Após a descoberta, cada sensor envia suas leituras periódicas diretamente para o endereço IP do Gateway na porta 5008 (UDP Unicast ponto-a-ponto). Essa mesma porta também recebe os anúncios iniciais dos dispositivos.
+**`dashboard/lib/api.ts`** — tipos TypeScript e funções fetch:
+- `ProcessStatus`, `Device`, `Reading` — contratos de dados
+- `startProcess(slot)`, `stopProcess(slot)`, `sendCommand(deviceId, state)`, etc.
 
-**Por que UDP Unicast para os dados dos sensores?**
+**`dashboard/hooks/useSSE.ts`** — hook `useSSE()`:
+- Cria `EventSource("http://localhost:8000/events")`
+- Registra listeners para `processes`, `gateway`, `devices`, `readings`
+- Detecta dispositivos novos/removidos comparando com `knownIdsRef` e gera log
+- Expõe: `processes`, `gatewayOnline`, `devices`, `readings`, `log`, `connected`, `connect()`, `disconnect()`
 
-- **Dados são descartáveis:** Uma leitura de temperatura ou qualidade do ar que se perde na rede é simplesmente substituída pela próxima leitura em 15 segundos. Não há prejuízo funcional em perder um pacote isolado.
-- **Sem overhead de conexão:** TCP exigiria manter uma conexão persistente aberta por cada sensor — potencialmente dezenas ou centenas de conexões simultâneas no Gateway. UDP é stateless; o Gateway não precisa gerenciar nenhum estado de conexão por sensor.
-- **Throughput:** Para telemetria de alta frequência com múltiplos dispositivos, o overhead dos headers TCP (ACK, controle de congestionamento, etc.) seria desperdiçado em pacotes pequenos e tolerantes à perda.
-- **Porta unificada (5008):** A mesma porta recebe tanto anúncios (`DeviceAnnouncement`) quanto dados (`SensorData`). O campo `oneof payload` do Protobuf permite ao Gateway rotear a mensagem para o handler correto sem precisar de portas separadas.
+**`dashboard/app/page.tsx`** — componentes principais:
 
----
-
-### 2.3 TCP — Comandos e Controle (Porta 5009 e portas dinâmicas)
-
-**O que é:** Dois usos distintos de TCP no sistema:
-
-1. **Gateway ↔ Cliente Analítico (porta 5009):** Conexão sob demanda — o Cliente abre um socket TCP, envia um `ClientRequest`, recebe a `GatewayResponse` e fecha a conexão.
-2. **Gateway → Atuador/SensorControlavel (porta dinâmica):** O Gateway abre uma conexão TCP direto ao dispositivo para entregar um `ActuatorCommand`.
-
-**Por que TCP para comandos?**
-
-- **Confiabilidade é obrigatória:** Um comando "Desligar semáforo" não pode ser perdido silenciosamente. O TCP garante entrega via retransmissão automática e confirmação de recebimento (ACK).
-- **Ordem preservada:** O TCP garante que os bytes chegam na ordem em que foram enviados — crítico para mensagens Protobuf binárias que não têm delimitador natural entre campos.
-- **Detecção de falha integrada:** Se a conexão TCP falhar (dispositivo offline), o Gateway recebe `ConnectionRefusedError` imediatamente e pode tomar ação — diferente do UDP onde a perda é silenciosa.
-
-**Porta dinâmica nos dispositivos:** Cada dispositivo faz `bind(('127.0.0.1', 0))` — o SO aloca a porta disponível automaticamente. A porta real é capturada com `getsockname()[1]` e incluída no anúncio `DeviceAnnouncement.port`, para que o Gateway saiba onde se conectar.
+| Componente | Função |
+|---|---|
+| `DeviceRow` | Linha na tabela de dispositivos; mostra tipo, IP, estado (Ligado/Desligado/Ativo) |
+| `ClientTerminal` | Painel com botões PING, LIST_DEVICES, Conectar/Desligar cliente |
+| `LiveReadings` | Lista as últimas leituras de sensores em tempo real (ordem decrescente) |
+| `ProcessCard` | Card de cada slot com botão Iniciar/Parar e badge de status |
 
 ---
 
-### 2.4 Protocol Buffers (Protobuf) — Mensageria Binária
+## 5. Protocol Buffers — Schema e Mensagens
 
-**Por que Protobuf em vez de JSON ou texto puro?**
+Arquivo: `protos/todolist.proto`
 
-| Critério | Texto puro | JSON | **Protobuf** |
-|---|---|---|---|
-| Tamanho do payload | Grande | Médio | **Mínimo** (binário, sem chaves textuais) |
-| Velocidade de serialização | Lenta | Média | **Rápida** |
-| Tipagem | Nenhuma | Fraca | **Forte** (schema `.proto` compilado) |
-| Evolução do schema | Manual | Manual | **Versionado** (campos numerados) |
-| Legibilidade humana | Alta | Alta | Baixa (binário) |
-| Validação automática | Não | Parcial | **Sim** (tipos garantidos pelo compilador) |
-
-**O padrão Envelope (`SmartCityMessage`):** O campo `oneof payload` permite que um único tipo de socket trafegue qualquer mensagem do sistema. O receptor verifica qual campo está preenchido com `HasField()` e roteia para o handler adequado — sem precisar inspecionar o conteúdo do payload ou manter sockets separados por tipo de mensagem.
-
+**Envelope único:**
 ```protobuf
 message SmartCityMessage {
   oneof payload {
-    GatewayDiscovery    discovery      = 1;
-    DeviceAnnouncement  announcement   = 2;
-    SensorData          sensor_data    = 3;
-    ActuatorCommand     command        = 4;
-    ClientRequest       client_request = 5;
+    GatewayDiscovery    discovery        = 1;
+    DeviceAnnouncement  announcement     = 2;
+    SensorData          sensor_data      = 3;
+    ActuatorCommand     command          = 4;
+    ClientRequest       client_request   = 5;
     GatewayResponse     gateway_response = 6;
   }
 }
 ```
 
+O receptor verifica qual campo está preenchido com `HasField()` e roteia sem precisar de portas separadas por tipo de mensagem.
+
+**Mensagens:**
+
+| Mensagem | Campos principais | Usado em |
+|---|---|---|
+| `GatewayDiscovery` | `data_port` (int) | UDP Multicast 5007 → dispositivos |
+| `DeviceAnnouncement` | `device_id`, `type` (DeviceType enum), `ip_address`, `port`, `is_actuator` | UDP 5008 → Gateway |
+| `SensorData` | `device_id`, `value` (float), `unit`, `timestamp` (int) | UDP 5008 → Gateway |
+| `ActuatorCommand` | `device_id`, `state` (bool), `threshold` (float), `enabled` (bool) | TCP dinâmico → atuadores |
+| `ClientRequest` | `command` (string), `target_device_id`, `new_state` (bool) | TCP 5009 → Gateway |
+| `GatewayResponse` | `status` ("SUCCESS"/"ERROR"), `message` (string) | TCP 5009 → cliente |
+
+**DeviceType enum:** `UNKNOWN`, `TEMPERATURE_SENSOR`, `AIR_QUALITY_SENSOR`, `LAMP_POST`, `TRAFFIC_LIGHT`, `CAMERA`
+
 ---
 
-## 3. Decisões de Design — O "Porquê"
+## 6. Comandos do Gateway (TCP)
 
-### 3.1 `threading.Lock()` e a Prevenção de Race Conditions
+Todos os comandos são enviados como `ClientRequest.command` (string) via TCP :5009.
 
-**O problema:** O Gateway roda quatro threads concorrentes que acessam os mesmos dados:
+| Comando | Campo adicional | Resposta SUCCESS | Resposta ERROR |
+|---|---|---|---|
+| `PING` | — | `"PONG"` | — |
+| `LIST_DEVICES` | — | Lista formatada de dispositivos com `\|`-separadores | `"Nenhum dispositivo conectado."` |
+| `GET_AVG` | `target_device_id` | `"Media de 'id': X.XX unit (N leituras)"` | `"Sem leituras para 'id'."` |
+| `GET_HISTORY` | — | Últimas 20 leituras em formato `device_id=x \| value=y \| unit=z \| ts=w` | `"Sem leituras ainda."` |
+| `SET_STATE` | `target_device_id`, `new_state` (bool) | `"'id' definido como LIGADO/DESLIGADO."` | Atuador offline ou não encontrado |
 
-| Thread | Operação |
-|---|---|
-| `UDP-Receiver` | Escreve em `active_devices` e `sensor_history` |
-| `Fault-Monitor` | Lê e deleta de `active_devices` |
-| `TCP-Server` (por cliente) | Lê `active_devices` e `sensor_history`; pode deletar de `active_devices` |
-| `Discovery-Broadcaster` | Apenas leitura de configurações imutáveis — não precisa de lock |
-
-**O que é uma Race Condition?** É quando o resultado de uma operação depende da ordem não-determinística em que múltiplas threads acessam um recurso compartilhado. Em Python, mesmo uma expressão simples como `dict[key] = value` pode ser interrompida pelo GIL (Global Interpreter Lock) em um momento arbitrário.
-
-**Cenário catastrófico sem Lock:**
-
+**Formato de saída de LIST_DEVICES:**
 ```
-Thread Fault-Monitor:  for device_id in list(active_devices.keys()):
-                                    ← INTERRUPÇÃO DO SCHEDULER →
-Thread UDP-Receiver:   active_devices["novo_sensor"] = {...}  # insere chave nova
-Thread Fault-Monitor:  del active_devices[device_id]  # itera sobre estado inconsistente
-                       → RuntimeError: dictionary changed size during iteration
+N dispositivo(s):
+  [1] device_id | tipo=TYPE | atuador=True/False | ip=127.0.0.1:PORT | estado=True/False
 ```
 
-**Como o Lock resolve:** `threading.Lock()` é um mutex binário. O bloco `with self.lock:` garante que apenas uma thread por vez executa a seção crítica. As demais ficam bloqueadas na entrada do `with` até o lock ser liberado.
+**Formato de saída de GET_HISTORY (por linha):**
+```
+device_id=rust_temp_abc | value=24.60 | unit=Celsius | ts=1749123456
+```
 
-**Padrão adotado — snapshot + processamento fora do lock:**
+---
+
+## 7. API REST — Referência de Endpoints
+
+Base URL: `http://localhost:8000`
+
+### Processos
+
+| Método | Path | Descrição |
+|---|---|---|
+| `GET` | `/processes` | Lista todos os slots e status `running` |
+| `POST` | `/processes/{slot}/start` | Inicia o subprocesso do slot |
+| `POST` | `/processes/{slot}/stop` | Para o subprocesso (SIGTERM + wait 5 s, SIGKILL se necessário) |
+| `GET` | `/processes/{slot}/logs?lines=40` | Últimas N linhas do log do processo |
+
+### Gateway (proxy)
+
+| Método | Path | Descrição |
+|---|---|---|
+| `GET` | `/gateway/ping` | `{"online": bool}` |
+| `GET` | `/gateway/devices` | `{"devices": [...], "count": N}` |
+| `GET` | `/gateway/avg/{device_id}` | `{"message": "Media de ..."}` |
+| `GET` | `/gateway/readings` | `{"readings": [{device_id, value, unit, ts}, ...]}` |
+| `POST` | `/gateway/command` | Body: `{"device_id": "...", "state": true/false}` |
+
+### SSE
+
+| Método | Path | Descrição |
+|---|---|---|
+| `GET` | `/events` | Stream SSE com eventos a cada 3 s |
+
+---
+
+## 8. SSE — Stream de Eventos em Tempo Real
+
+O frontend se conecta em `GET /events` via `EventSource`. A API emite quatro tipos de evento a cada 3 s:
+
+```
+event: processes
+data: {"gateway": {"label": "Gateway Inteligente", "running": true}, ...}
+
+event: gateway
+data: {"online": true}
+
+event: devices
+data: {"devices": [{"device_id": "...", "tipo": "...", "atuador": "False", "ip": "...", "estado": "False"}]}
+
+event: readings
+data: {"readings": [{"device_id": "...", "value": "24.60", "unit": "Celsius", "ts": "1749123456"}]}
+```
+
+O hook `useSSE` no dashboard detecta mudanças (não repete logs a cada tick):
+- Novo `device_id` aparece → log `discovery: id conectado`
+- `device_id` some → log `desconexão: id removido`
+- Contagem de processos rodando muda → log `processes: N processos rodando`
+- Status do gateway muda → log `gateway: Online/Offline`
+
+---
+
+## 9. Decisões de Design
+
+### 9.1 `threading.Lock()` — Prevenção de Race Conditions
+
+Quatro threads acessam `active_devices` e `sensor_history` concorrentemente. Sem lock, `RuntimeError: dictionary changed size during iteration` é inevitável.
+
+**Padrão adotado — snapshot fora do lock:**
 ```python
-# DENTRO do lock: apenas a cópia rápida do estado
 with self.lock:
-    snapshot = dict(self.active_devices)  # O(n) — rápido
+    snapshot = dict(self.active_devices)   # cópia rápida dentro do lock
 
-# FORA do lock: formatação, I/O, etc. — sem bloquear outras threads
-for did, info in snapshot.items():
-    lines.append(f"  [{i+1}] {did} | ...")
+for did, info in snapshot.items():         # iteração e I/O fora do lock
+    lines.append(...)
 ```
-Isso minimiza o tempo que o lock é mantido, aumentando a concorrência efetiva do sistema.
+Minimiza o tempo na seção crítica, aumentando a concorrência efetiva.
 
----
+### 9.2 Lista plana para `sensor_history`
 
-### 3.2 Lista Plana para `sensor_history` em vez de Dicionários Aninhados
+`append()` é O(1) e atômico. Consultas são uma compreensão de lista simples. Dicionário aninhado exigiria `setdefault` + múltiplas operações dentro do lock.
 
-**Alternativa descartada (dicionário aninhado):**
+### 9.3 Detecção ativa vs. passiva de falhas
+
+| Tipo | Estratégia | Por quê |
+|---|---|---|
+| Sensor (UDP) | **Ativa** — timeout de 25 s no monitor | Sensores são silenciosos ao falhar; Gateway nunca os contata por iniciativa própria |
+| Atuador (TCP) | **Proba TCP** no monitor (1 s) + **lazy** no SET_STATE | Detecta desconexão em ≤ 10 s sem esperar um comando; lazy como backup no fluxo normal |
+
+**Timeout de 25 s para sensores:** equivale a ~1,7 ciclos de envio (15 s cada), com margem para atrasos transitórios.
+
+### 9.4 Discovery `while True` a cada 5 s
+
+Resolve três cenários que um disparo único não resolveria:
+1. Dispositivo ligado **depois** do Gateway
+2. Dispositivo que **reiniciou** (perde `gateway_address` da memória)
+3. Pacote UDP **descartado** por rede instável
+
+Resultado: sistema **auto-cicatrizante** (self-healing) sem intervenção manual.
+
+### 9.5 `SO_REUSEADDR` no servidor TCP
+
 ```python
-# NÃO usado — por quê?
-sensor_history = {
-    "sensor_abc": [
-        {"value": 23.5, "unit": "Celsius", "timestamp": 1717000000},
-        ...
-    ]
+tcp_server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+```
+Evita `Address already in use` ao reiniciar o Gateway enquanto a porta 5009 ainda está em `TIME_WAIT`.
+
+### 9.6 `GATEWAY_ADDR` env var
+
+Dispositivos iniciados pela API herdam `GATEWAY_ADDR=127.0.0.1:5008`. Isso pula o bind multicast na porta 5007, que no Windows retorna `WinError 10013` (acesso negado) quando múltiplos processos tentam bindar a mesma porta simultaneamente.
+
+### 9.7 `state` preservado no re-registro
+
+```python
+existing = self.active_devices.get(announcement.device_id, {})
+self.active_devices[announcement.device_id] = {
+    ...
+    'state': existing.get('state', False),   # preserva o estado anterior
 }
 ```
-
-**Escolha feita (lista plana):**
-```python
-sensor_history = [
-    {"device_id": "sensor_abc", "value": 23.5, "unit": "Celsius", "timestamp": ...},
-    {"device_id": "sensor_xyz", "value": 45.1, "unit": "µg/m³",   "timestamp": ...},
-    ...
-]
-```
-
-**Razões técnicas para a lista plana:**
-
-1. **Simplicidade de append:** Toda nova leitura é `self.sensor_history.append(entry)` — O(1) independente do número de dispositivos. Com dicionário aninhado, seria necessário primeiro verificar se a chave existe, criar a lista se não existir (`setdefault`), e então fazer o append — mais propenso a erros.
-
-2. **Consulta por `GET_AVG` é uma única compreensão de lista:**
-   ```python
-   readings = [r for r in self.sensor_history if r['device_id'] == device_id]
-   ```
-   Com dicionário aninhado seria `sensor_history.get(device_id, [])` — mais rápido para lookup, mas a lista plana foi suficiente para o escopo do projeto e mantém a estrutura uniforme.
-
-3. **Facilidade de extensão:** Uma lista plana é trivialmente serializável para CSV, banco de dados ou streaming — cada entrada é um registro independente e completo, sem dependência da estrutura hierárquica.
-
-4. **Sem sincronização complexa:** Com dicionário aninhado, múltiplas operações (verificar chave, criar lista, appender) precisariam ser atômicas dentro do lock. A lista plana reduz o trabalho dentro da seção crítica a uma única operação.
+Se o Gateway reinicia e um dispositivo re-anuncia, o estado ligado/desligado anterior não é perdido.
 
 ---
 
-### 3.3 Estratégias Diferentes de Tolerância a Falhas: Ativa (Heartbeat) vs. Passiva (Lazy)
+## 10. Detecção de Falhas e Tolerância
 
-Esta é uma das decisões mais sofisticadas do sistema. Dois tipos de dispositivos recebem tratamentos completamente diferentes quando falham.
+### Sensor desligado (Ctrl+C)
 
-#### Detecção Ativa para Sensores — Heartbeat/Timeout de 35 segundos
+1. Processo termina; socket UDP fecha sem enviar nenhuma mensagem de desconexão
+2. `last_seen` para de ser atualizado
+3. Em ≤ 25 s, `_thread_monitor_falhas` remove o sensor de `active_devices`
+4. Dashboard detecta o desaparecimento no próximo tick SSE e loga `desconexão`
 
-**Onde:** `_thread_monitor_falhas()` em `gateway.py:291-321`
+### Atuador desligado (processo morto)
 
-**Como funciona:** Uma thread verifica a cada 10 segundos se algum sensor não enviou dados há mais de 35 segundos. Se o `last_seen` estiver vencido, o sensor é removido de `active_devices`.
+1. Processo termina; porta TCP deixa de aceitar conexões
+2. No próximo ciclo do monitor (≤ 10 s), `connect(timeout=1s)` falha com `OSError`
+3. Atuador é removido de `active_devices`
+
+### Gateway reiniciado
+
+1. Sensores continuam enviando UDP — pacotes descartados silenciosamente pelo SO
+2. Atuadores continuam com TCP server ativo — sem crash
+3. Gateway reinicia com `SO_REUSEADDR` → sem erro `Address already in use`
+4. Em ≤ 5 s, broadcaster multicast alcança todos os dispositivos
+5. Dispositivos re-enviam anúncios → `active_devices` repopulado automaticamente
+
+### Cliente durante queda do Gateway
 
 ```python
-TIMEOUT_SENSOR = 35  # 15s de intervalo de envio + 20s de margem
-if not info['is_actuator'] and tempo_inativo > TIMEOUT_SENSOR:
-    del self.active_devices[device_id]
+s.settimeout(5)
+# ConnectionRefusedError → mensagem amigável, retorno ao menu
+# socket.timeout        → mensagem de timeout, retorno ao menu
 ```
+O cliente nunca trava indefinidamente.
 
-**Por que 35 segundos?** Os sensores enviam dados a cada 15 segundos. O timeout de 35 segundos equivale a 2,3 ciclos de envio — margem suficiente para absorver um atraso de rede ou a lentidão momentânea do sistema operacional, mas pequena o suficiente para detectar falhas reais rapidamente.
-
-**Por que detectar ativamente sensores?** Sensores são **silenciosos por natureza quando falham** — simplesmente param de enviar pacotes UDP. Não há conexão TCP que gere um `ConnectionRefusedError`. O Gateway nunca "tentará contatar" um sensor por iniciativa própria, portanto a única forma de saber que ele morreu é perceber a ausência de suas mensagens.
-
-#### Detecção Passiva (Lazy) para Atuadores
-
-**Onde:** `_cmd_set_state()` em `gateway.py:254-285`
-
-**Como funciona:** O Gateway só descobre que um atuador está offline quando tenta enviar um comando TCP a ele e recebe `ConnectionRefusedError` ou `TimeoutError`. Nesse momento, remove o atuador de `active_devices`.
-
-```python
-try:
-    with socket.socket(...) as s:
-        s.settimeout(5)
-        s.connect((device['ip'], device['port']))  # ← falha aqui se offline
-        s.sendall(cmd_msg.SerializeToString())
-except (ConnectionRefusedError, TimeoutError, OSError):
-    with self.lock:
-        self.active_devices.pop(device_id, None)   # ← remoção lazy
-```
-
-**Por que detectar passivamente atuadores?** Atuadores são **passivos por natureza** — ficam apenas aguardando comandos TCP. Um monitor de heartbeat para atuadores exigiria que o Gateway iniciasse uma conexão de "ping" periódica para cada um — gerando tráfego desnecessário e complexidade adicional.
-
-Além disso, a falha de um atuador só importa no momento em que alguém tenta controlá-lo. Não faz sentido manter um ciclo de monitoramento constante para detectar antecipadamente uma falha que só será relevante "se e quando" um operador emitir um comando.
-
-**Comparativo visual:**
-
-| Critério | Sensor (Ativa) | Atuador (Passiva) |
-|---|---|---|
-| Comportamento normal | Envia dados periodicamente | Fica aguardando passivamente |
-| Como a falha se manifesta | Para de enviar UDP | Recusa conexão TCP |
-| Quando a falha importa | Sempre (dados faltando = problema) | Só quando um comando é enviado |
-| Overhead de monitoramento | Uma thread + lock a cada 10s | Zero — detecção acontece no fluxo normal |
-
----
-
-### 3.4 Por que o Discovery Multicast usa `while True` em vez de disparar uma única vez?
-
-**Trecho (`gateway.py:68-71`):**
-```python
-while True:
-    sock.sendto(serialized, (MULTICAST_GROUP, MULTICAST_PORT))
-    time.sleep(DISCOVERY_INTERVAL)  # 5 segundos
-```
-
-**Cenários que o `while True` resolve e um disparo único não resolveria:**
-
-1. **Dispositivos que entram na rede depois do Gateway iniciar:** Se o Gateway enviasse a mensagem de descoberta apenas uma vez ao iniciar, qualquer sensor ou atuador ligado após esse momento jamais receberia o endereço do Gateway e nunca se registraria.
-
-2. **Dispositivos que reiniciam:** Um sensor que sofre um reboot perde seu `gateway_address` da memória. Ele voltará a escutar o grupo multicast e só conseguirá se registrar novamente quando o Gateway enviar o próximo broadcast.
-
-3. **Falhas de rede transitórias:** Um pacote UDP pode ser descartado por um switch sobrecarregado. Com envio periódico, o próximo ciclo de 5 segundos garante uma nova oportunidade de descoberta.
-
-**Por que 5 segundos?** É um compromisso entre:
-- **Responsividade:** Um dispositivo novo se registra em no máximo 5 segundos após ligar.
-- **Overhead de rede:** Um broadcast multicast a cada 5 segundos gera tráfego desprezível (mensagem Protobuf de ~10 bytes).
-
-**Auto-reparo da rede:** Essa decisão é o que torna o sistema **auto-cicatrizante** (self-healing). A rede se reconstrói sozinha após qualquer falha sem intervenção manual — característica essencial de sistemas distribuídos robustos.
-
----
-
-## 4. Resiliência e Tratamento de Falhas
-
-### 4.1 Cenário: Sensor Desligado Abruptamente (Ctrl+C)
-
-**O que acontece na rede:**
-
-1. O processo do sensor termina. O socket UDP é fechado pelo SO — mas como UDP é sem conexão, **nenhuma mensagem de "desconexão" é enviada ao Gateway**. O Gateway simplesmente para de receber pacotes UDP daquele sensor.
-
-2. O campo `last_seen` do sensor em `active_devices` para de ser atualizado.
-
-3. **Em até 35 segundos**, a thread `Fault-Monitor` detecta que `tempo_inativo > TIMEOUT_SENSOR` e remove o dispositivo:
-   ```
-   [ALERTA] Sensor 'temperature_sensor_a1b2' parou de enviar dados e foi removido!
-   ```
-
-4. A partir desse momento, consultas `GET_AVG` retornam `"ERROR: Sem leituras para 'sensor_id'"` — os dados históricos permanecem em `sensor_history` mas o dispositivo sai do `LIST_DEVICES`.
-
-5. **Quando o sensor reiniciar**, ele ouvirá o próximo broadcast multicast (em até 5 segundos), enviará um anúncio com novo ID (UUID regenerado) e voltará a aparecer no `LIST_DEVICES` como um novo dispositivo.
-
----
-
-### 4.2 Cenário: Gateway Reiniciado
-
-**O que acontece na rede:**
-
-1. Todos os sockets do Gateway fecham. As threads daemon encerram automaticamente (por serem `daemon=True`).
-
-2. Os sensores continuam tentando enviar UDP para `127.0.0.1:5008` — os pacotes são descartados silenciosamente pelo SO (nenhum processo escuta a porta). Nenhum sensor crashar — UDP é fire-and-forget.
-
-3. Os atuadores ficam aguardando conexões TCP — também não crasham.
-
-4. **Quando o Gateway reinicia:**
-   - `SO_REUSEADDR` na porta TCP 5009 evita o erro `Address already in use` que ocorreria enquanto a porta está em TIME_WAIT.
-   - O broadcaster multicast começa imediatamente a enviar descobertas a cada 5 segundos.
-   - Em até 5 segundos, todos os sensores e atuadores ativos recebem a mensagem de descoberta e re-enviam seus anúncios.
-   - O `active_devices` se repopula. A rede está operacional novamente em **menos de 10 segundos** sem qualquer intervenção manual.
-
-5. **Dado perdido:** O `sensor_history` é mantido apenas em memória — ao reiniciar o Gateway, todo o histórico de leituras é perdido. Isso é uma limitação do sistema atual (sem persistência em banco de dados).
-
----
-
-### 4.3 Cenário: Gateway Cai Durante uma Consulta do Cliente
-
-**No `cliente.py`:**
-
-```python
-try:
-    with socket.socket(...) as s:
-        s.settimeout(5)          # ← timeout de 5 segundos
-        s.connect((GATEWAY_IP, GATEWAY_TCP_PORT))
-        ...
-except ConnectionRefusedError:
-    print("[ERRO] Gateway não está acessível.")
-    return None
-except socket.timeout:
-    print("[ERRO] Timeout: o Gateway não respondeu em 5 segundos.")
-    return None
-except Exception as e:
-    print(f"[ERRO] Falha na comunicação: {e}")
-    return None
-```
-
-**Comportamento:**
-- Se o Gateway estiver offline, `connect()` lança `ConnectionRefusedError` imediatamente (< 1ms). O cliente imprime uma mensagem amigável e retorna ao menu.
-- Se o Gateway estiver lento ou travado, o `settimeout(5)` garante que o cliente nunca ficará bloqueado indefinidamente.
-- **O cliente nunca crasha** — todas as exceções são capturadas e tratadas graciosamente.
-- O loop principal do menu continua rodando, permitindo que o operador tente novamente após o Gateway voltar.
-
----
-
-### 4.4 Cenário: Comando Enviado a Atuador Offline
-
-**No `gateway.py` — `_cmd_set_state()`:**
+### Comando a atuador offline (lazy detection)
 
 ```python
 except (ConnectionRefusedError, TimeoutError, OSError):
-    with self.lock:
-        self.active_devices.pop(device_id, None)
-    print(f"\n[ALERTA] Atuador '{device_id}' não respondeu e foi removido!\n")
+    self.active_devices.pop(device_id, None)   # remoção imediata
     return "ERROR", f"Atuador '{device_id}' estava offline e foi removido."
 ```
 
-**Comportamento:**
-1. O Gateway tenta conectar TCP ao atuador com timeout de 5 segundos.
-2. Se falhar, o atuador é **imediatamente removido** de `active_devices` (detecção lazy).
-3. O Cliente recebe uma resposta `ERROR` com mensagem explicativa.
-4. Próxima consulta `LIST_DEVICES` já não mostrará o atuador removido.
+### Limitação: `sensor_history` em memória
+
+Reiniciar o Gateway apaga todo o histórico de leituras. Não há persistência em banco de dados.
 
 ---
 
-## 5. Guia de Execução Passo a Passo
+## 11. Configuração e Variáveis de Ambiente
+
+| Variável | Onde usada | Efeito |
+|---|---|---|
+| `GATEWAY_ADDR` | `dispositivos.py`, `main.rs` | `ip:porta` — pula multicast e conecta direto; injetado pela API para todos os slots não-gateway |
+| `PYTHONUNBUFFERED` | `api.py` | `"1"` — flush imediato nos logs dos subprocessos Python |
+
+**Constantes de rede (hardcoded, sem env var):**
+
+| Constante | Valor | Arquivo |
+|---|---|---|
+| `MULTICAST_GROUP` | `224.1.1.1` | gateway.py, dispositivos.py |
+| `MULTICAST_PORT` | `5007` | gateway.py, dispositivos.py |
+| `GATEWAY_DATA_PORT` | `5008` | gateway.py |
+| `GATEWAY_TCP_PORT` | `5009` | gateway.py |
+| `DISCOVERY_INTERVAL` | `5` s | gateway.py |
+| `TIMEOUT_SENSOR` | `25` s | gateway.py (_thread_monitor_falhas) |
+| Monitor interval | `10` s | gateway.py (_thread_monitor_falhas) |
+| Sensor send interval | `15` s | dispositivos.py, main.rs |
+| API port | `8000` | api.py |
+| Dashboard port | `3000` | Next.js padrão |
+
+---
+
+## 12. Guia de Execução
 
 ### Pré-requisitos
 
 ```bash
-# Instalar dependências Python
-pip install protobuf
-
-# Verificar que o arquivo compilado existe
-# protos/todolist_pb2.py deve estar presente
+pip install protobuf fastapi "uvicorn[standard]"
+# Rust (para o sensor opcional): winget install Rustlang.Rustup
+# Node.js 18+ para o dashboard
 ```
 
-### Estrutura de Arquivos Esperada
-
-```
-SD_Socktes/
-├── gateway.py
-├── dispositivos.py
-├── cliente.py
-├── protos/
-│   ├── todolist.proto
-│   └── todolist_pb2.py   ← gerado pelo compilador protoc
-└── dispositivo_rust/
-    ├── Cargo.toml
-    ├── build.rs           ← compila o .proto em tempo de build
-    └── src/
-        └── main.rs        ← sensor de temperatura em Rust
-```
-
-### Compilar o Protobuf (se necessário)
+### Com dashboard
 
 ```bash
-# Na raiz do projeto
-protoc --python_out=. protos/todolist.proto
+# Terminal 1
+python api.py
+
+# Terminal 2
+cd dashboard && npm install && npm run dev
+# Acessar http://localhost:3000
 ```
 
----
-
-### Roteiro de Demonstração
-
-#### Terminal 1 — Iniciar o Gateway (SEMPRE PRIMEIRO)
+### Sem dashboard (linha de comando)
 
 ```bash
+# Gateway primeiro
 python gateway.py
-```
 
-**Saída esperada:**
-```
-====================================================
-   Gateway Inteligente — Cidade Inteligente
-====================================================
-[UDP] Aguardando mensagens na porta 5008 (anúncios + dados)
-[TCP] Servidor escutando na porta 5009 (Cliente Analitico)
-[Monitor] Thread de deteccao de falhas iniciada (intervalo=10s).
-[Discovery] Broadcaster iniciado → 224.1.1.1:5007
-[Discovery] Dispositivos devem responder na porta UDP 5008
-[Gateway] Em execucao. Pressione Ctrl+C para sair.
-```
+# Dispositivos (em terminais separados)
+python -c "from dispositivos import Continuos; Continuos('TEMPERATURE_SENSOR','Celsius').iniciar()"
+python -c "from dispositivos import SensorControlavel; SensorControlavel('AIR_QUALITY_SENSOR','ug/m3').iniciar()"
+python -c "from dispositivos import Atuador; Atuador('LAMP_POST').iniciar()"
 
-> **Por que o Gateway primeiro?** Os dispositivos precisam receber o broadcast multicast para saber onde se registrar. Se iniciados antes do Gateway, eles ouvirão o próximo broadcast (em até 5 segundos) e se registrarão automaticamente — mas começar pelo Gateway é mais didático.
+# Sensor Rust (opcional)
+cd dispositivo_rust && cargo run
 
----
-
-#### Terminal 2 — Iniciar um Sensor de Temperatura
-
-```python
-# Crie um arquivo run_sensor_temp.py
-from dispositivos import Continuos
-sensor = Continuos(tipo="TEMPERATURE_SENSOR", data_unit="Celsius")
-sensor.iniciar()
-```
-
-```bash
-python run_sensor_temp.py
-```
-
-**Saída esperada no Terminal 2:**
-```
-Iniciando sensor: temperature_sensor_a1b2
-[temperature_sensor_a1b2] Aguardando descoberta em 224.1.1.1:5007
-[temperature_sensor_a1b2] Aguardando descoberta do Gateway para iniciar envio...
-
-[temperature_sensor_a1b2] Gateway descoberto em ('127.0.0.1', 5008)
-[temperature_sensor_a1b2] Anúncio enviado para o Gateway.
-[temperature_sensor_a1b2] Gateway encontrado. Enviando dados para ('127.0.0.1', 5008)
-[temperature_sensor_a1b2] Nova leitura: 27.43 Celsius
-```
-
-**Saída esperada no Terminal 1 (Gateway):**
-```
-[UDP] + Dispositivo registrado: temperature_sensor_a1b2
-      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:XXXX
-
-[UDP] [sensor] Leitura de 'temperature_sensor_a1b2': 27.43 Celsius
-```
-
----
-
-#### Terminal 3 — Iniciar um Sensor de Qualidade do Ar (Controlável)
-
-```python
-# Crie run_sensor_ar.py
-from dispositivos import SensorControlavel
-sensor = SensorControlavel(tipo="AIR_QUALITY_SENSOR", data_unit="µg/m³")
-sensor.iniciar()
-```
-
-```bash
-python run_sensor_ar.py
-```
-
----
-
-#### Terminal 4 — Iniciar um Atuador (Poste de Luz)
-
-```python
-# Crie run_atuador.py
-from dispositivos import Atuador
-atuador = Atuador(tipo="LAMP_POST")
-atuador.iniciar()
-```
-
-```bash
-python run_atuador.py
-```
-
----
-
-#### Terminal 5 — Iniciar o Cliente Analítico (POR ÚLTIMO)
-
-```bash
+# Cliente analítico
 python cliente.py
 ```
 
-**Menu exibido:**
-```
-============================================
-   Cliente Analitico — Cidade Inteligente
-============================================
-  [1] Listar dispositivos online
-  [2] Consultar media de um sensor
-  [3] Ligar / Desligar atuador
-  [0] Sair
---------------------------------------------
-Escolha uma opcao:
-```
+### Simulação de falhas
+
+| Cenário | Como simular | O que observar |
+|---|---|---|
+| Sensor offline | Ctrl+C no processo do sensor | Em ≤ 25 s: alerta no Gateway, dispositivo some do LIST_DEVICES |
+| Atuador offline | Ctrl+C no processo do atuador | Em ≤ 10 s: removed pelo monitor; ou na próxima SET_STATE: erro lazy |
+| Gateway reiniciado | Ctrl+C + relançar gateway.py | Em ≤ 5 s: todos os dispositivos voltam a aparecer |
+| Cliente sem gateway | Rodar cliente.py sem gateway | Mensagem de erro, retorna ao menu — sem crash |
 
 ---
 
-### Sequência de Comandos para Demonstração
-
-#### 1. Listar Dispositivos Online (`opção 1`)
-```
-Escolha uma opcao: 1
-
-3 dispositivo(s):
-  [1] temperature_sensor_a1b2 | tipo=TEMPERATURE_SENSOR | atuador=False | ip=127.0.0.1:XXXX
-  [2] air_quality_sensor_c3d4 | tipo=AIR_QUALITY_SENSOR | atuador=True  | ip=127.0.0.1:YYYY
-  [3] lamp_post_e5f6          | tipo=LAMP_POST           | atuador=True  | ip=127.0.0.1:ZZZZ
-```
-
-#### 2. Consultar Média de um Sensor (`opção 2`)
-```
-Escolha uma opcao: 2
-  Digite o ID do sensor: temperature_sensor_a1b2
-
-  Media de 'temperature_sensor_a1b2': 26.87 Celsius (4 leituras)
-```
-
-#### 3. Ligar um Atuador (`opção 3`)
-```
-Escolha uma opcao: 3
-  Digite o ID do atuador: lamp_post_e5f6
-  Novo estado [1=Ligar / 0=Desligar]: 1
-
-  'lamp_post_e5f6' definido como LIGADO.
-```
-
----
-
-### Simulação de Falhas
-
-#### Derrubar um Sensor (Ctrl+C no Terminal 2)
-Aguardar até 35 segundos e observar no **Terminal 1**:
-```
-[ALERTA] Sensor 'temperature_sensor_a1b2' parou de enviar dados e foi removido!
-```
-
-#### Reiniciar o Gateway (Ctrl+C no Terminal 1, depois relançar)
-Observar nos terminais dos dispositivos: eles continuam rodando. Após relançar o Gateway, em até 5 segundos todos voltam a aparecer em `LIST_DEVICES`.
-
-#### Derrubar um Atuador e Tentar Comandar
-Com o Terminal 4 encerrado, ir ao Cliente e tentar `SET_STATE` no atuador morto:
-```
-  'lamp_post_e5f6' estava offline e foi removido.
-```
-
----
-
-## Apêndice — Tabela Resumo dos Protocolos
-
-| Protocolo | Porta | Direção | Tipo de Mensagem | Justificativa |
-|---|---|---|---|---|
-| UDP Multicast | 5007 | Gateway → Todos | `GatewayDiscovery` | Descoberta 1→N sem endereços pré-conhecidos |
-| UDP Unicast | 5008 | Dispositivos → Gateway | `DeviceAnnouncement` | Registro inicial após descoberta |
-| UDP Unicast | 5008 | Sensores → Gateway | `SensorData` | Telemetria tolerante à perda |
-| TCP | 5009 | Cliente → Gateway | `ClientRequest` / `GatewayResponse` | Comandos confiáveis do operador |
-| TCP | Dinâmica | Gateway → Atuador | `ActuatorCommand` | Controle confiável de dispositivos |
-
----
-
----
-
-## 6. Sensor de Temperatura em Rust
-
-### Objetivo
-
-O `dispositivo_rust` implementa o mesmo papel de um `Sensor Contínuo` Python — mas em **Rust**. Seu propósito principal é demonstrar que o sistema é **agnóstico de linguagem**: qualquer processo que fale o mesmo protocolo (UDP + Protobuf) integra-se ao Gateway sem modificações, independentemente da linguagem em que foi escrito.
-
-### O que o sensor faz
-
-1. **Entra no grupo Multicast** `224.1.1.1:5007` e aguarda o broadcast de descoberta do Gateway.
-2. **Ao detectar o Gateway**, envia um `DeviceAnnouncement` identificando-se como `TEMPERATURE_SENSOR` via UDP Unicast.
-3. **Inicia o envio de telemetria** a cada 15 segundos: temperatura simulada entre 20 °C e 30 °C, oscilando com base no timestamp Unix.
-4. **Se a conexão ao Gateway falhar**, retorna ao loop de descoberta e aguarda o próximo broadcast.
-
-### Pré-requisitos
-
-| Ferramenta | Instalação |
-|---|---|
-| Rust (rustc + cargo) | `winget install Rustlang.Rustup` (reiniciar o terminal após) |
-| Compilador Protobuf (`protoc`) | `winget install Google.Protobuf` |
-
-> O `protoc` é necessário porque o `build.rs` compila o arquivo `.proto` automaticamente durante o `cargo build`.
-
-### Como executar
-
-```powershell
-# Em um terminal separado, com o Gateway já rodando
-cd dispositivo_rust
-cargo run
-```
-
-O `cargo` baixa todas as dependências automaticamente na primeira execução. A compilação inicial demora ~1 minuto; execuções subsequentes são instantâneas.
-
-### Saída esperada
-
-```
-=== Dispositivo IoT em Rust Iniciado ===
-Device ID: rust_temp_sensor_71b4
-[Multicast] Aguardando broadcast de descoberta do Gateway (porta 5007)...
-
-[Discovery] Gateway detectado em 127.0.0.1:5007
-[Discovery] Porta de dados do Gateway: 5008
-[Registro] Anuncio de dispositivo enviado para o Gateway.
-[Telemetria] Iniciando envio de leituras a cada 15 segundos...
-[Telemetria] Enviado: rust_temp_sensor_71b4 = 24.6 Celsius (timestamp: 1749123456)
-[Telemetria] Enviado: rust_temp_sensor_71b4 = 24.7 Celsius (timestamp: 1749123471)
-```
-
-No **Terminal do Gateway**, o sensor aparece como qualquer outro dispositivo:
-
-```
-[UDP] + Dispositivo registrado: rust_temp_sensor_71b4
-      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:XXXX
-
-[UDP] [sensor] Leitura de 'rust_temp_sensor_71b4': 24.6 Celsius
-```
-
-### Por que Rust demonstra interoperabilidade?
-
-O Gateway não tem nenhum conhecimento de que o sensor é escrito em Rust. Ele recebe um pacote UDP binário, desserializa com Protobuf e processa normalmente. O mesmo vale para qualquer outra linguagem (C, Go, Java, etc.) que implemente o mesmo schema `.proto`. Isso ilustra uma propriedade fundamental de sistemas distribuídos: **o contrato é o protocolo, não a implementação**.
-
----
-
-*Documentação gerada com base na análise dos arquivos: `gateway.py`, `dispositivos.py`, `cliente.py`, `protos/todolist.proto` e `dispositivo_rust/src/main.rs`.*
+*Baseada na análise dos arquivos: `gateway.py`, `dispositivos.py`, `cliente.py`, `api.py`, `protos/todolist.proto`, `dispositivo_rust/src/main.rs`, `dashboard/hooks/useSSE.ts`, `dashboard/lib/api.ts`, `dashboard/app/page.tsx`.*

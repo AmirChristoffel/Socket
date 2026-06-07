@@ -1,101 +1,120 @@
-# Gateway Inteligente — Cidade Inteligente (SD)
+# Smart City IoT — Gateway Inteligente (SD)
 
-Sistema IoT distribuído onde dispositivos heterogêneos se registram automaticamente em um Gateway centralizado. Um Cliente Analítico consulta o estado da rede e envia comandos de controle sem configuração manual de endereços.
-
----
-
-## Componentes
-
-| Componente | Arquivo | Papel |
-|---|---|---|
-| **Gateway** | `gateway.py` | Cérebro: descobre dispositivos, armazena leituras, atende o cliente |
-| **Sensor Contínuo** | `dispositivos.py → Continuos` | Envia leituras UDP periódicas; não aceita comandos |
-| **Atuador** | `dispositivos.py → Atuador` | Recebe comandos TCP (ligar/desligar); não envia dados |
-| **Sensor Controlável** | `dispositivos.py → SensorControlavel` | Híbrido: envia UDP **e** aceita TCP (ajuste de threshold) |
-| **Cliente Analítico** | `cliente.py` | Lista dispositivos, consulta médias, envia comandos |
-| **Sensor de Temperatura (Rust)** | `dispositivo_rust/src/main.rs` | Sensor contínuo em Rust; demonstra interoperabilidade via Protobuf |
-
-**Hierarquia:** `Dispositivos` → `Atuador` / `Continuos` → `SensorControlavel`
+Sistema IoT distribuído para uma **Cidade Inteligente**, desenvolvido na disciplina de Sistemas Distribuídos. Dispositivos heterogêneos (sensores, atuadores) se registram automaticamente em um Gateway centralizado sem configuração manual de endereços. Um **dashboard web** permite monitorar e controlar tudo em tempo real.
 
 ---
 
-## Arquitetura de Rede
+## Por que este sistema existe
+
+O projeto demonstra na prática os conceitos centrais de SD:
+
+- **Descoberta automática** via UDP Multicast — nenhum endereço precisa ser configurado a priori
+- **Telemetria tolerante à perda** via UDP — dados de sensor não precisam de entrega garantida
+- **Controle confiável** via TCP — comandos de ligar/desligar exigem confirmação
+- **Interoperabilidade de linguagens** via Protocol Buffers — o sensor em Rust fala o mesmo protocolo que os sensores Python
+- **Detecção de falhas** — sensores removidos por timeout de 25 s, atuadores por prova TCP em ≤ 10 s
+
+---
+
+## Arquitetura em uma linha
 
 ```
-Gateway (broadcaster) ──UDP Multicast 5007──► Todos os dispositivos
-Dispositivos          ──UDP Unicast    5008──► Gateway (anúncio + sensor data)
-Cliente Analítico     ──TCP            5009──► Gateway (comandos / respostas)
-Gateway               ──TCP   porta dinâmica► Atuador / SensorControlavel
+Dispositivos ──UDP 5008──► Gateway ──TCP 5009──► Cliente/API
+Gateway      ──UDP Multicast 5007──► Dispositivos (descoberta)
+API (FastAPI :8000) ──SSE──► Dashboard (Next.js :3000)
 ```
 
-| Protocolo | Porta | Por quê |
+| Camada | Arquivo | Papel |
 |---|---|---|
-| UDP Multicast | 5007 | Descoberta 1→N sem endereços pré-conhecidos; TTL=2 (rede local) |
-| UDP Unicast | 5008 | Telemetria tolerante à perda; sem overhead de conexão por sensor |
-| TCP | 5009 | Comandos do cliente exigem entrega garantida e ordem preservada |
-| TCP | Dinâmica | Controle confiável de atuadores; porta anunciada no `DeviceAnnouncement` |
-
-**Protobuf vs JSON:** binário (menor payload), tipagem forte, schema versionado, validação automática. O padrão `oneof SmartCityMessage` roteia qualquer tipo de mensagem pelo mesmo socket via `HasField()`.
-
----
-
-## Decisões de Design
-
-**`threading.Lock()`** — 4 threads acessam `active_devices` e `sensor_history` concorrentemente. Sem lock, `dict changed size during iteration` é inevitável. Padrão adotado: copia o estado para um snapshot *dentro* do lock e faz I/O/formatação *fora*, minimizando o tempo da seção crítica.
-
-**Lista plana para `sensor_history`** — `append()` é O(1) e atômico; a compreensão de lista em `GET_AVG` filtra por `device_id` em uma única expressão. Dicionário aninhado exigiria `setdefault` + múltiplas operações atômicas dentro do lock.
-
-**Heartbeat ativo (35 s) para sensores** — sensores falhos ficam silenciosos; o Gateway nunca tenta contatá-los, então a única detecção possível é pela ausência de mensagens. Timeout = 2,3× o intervalo de envio (15 s) para absorver atrasos transitórios.
-
-**Detecção lazy para atuadores** — atuadores ficam passivamente aguardando TCP. Monitoramento periódico geraria tráfego desnecessário. A falha só importa quando um comando é enviado; `ConnectionRefusedError` / `TimeoutError` disparam a remoção imediata do `active_devices`.
-
-**Discovery `while True` a cada 5 s** — garante que dispositivos ligados após o Gateway, dispositivos que reiniciaram e pacotes descartados por rede instável sempre terão uma nova janela para se registrar. Torna o sistema **auto-cicatrizante** sem intervenção manual.
+| Gateway | `gateway.py` | Descobre dispositivos, armazena leituras, atende comandos TCP |
+| Dispositivos Python | `dispositivos.py` | Classes `Continuos`, `Atuador`, `SensorControlavel` |
+| Sensor Rust | `dispositivo_rust/` | Sensor de temperatura em Rust — mesma interface Protobuf |
+| Cliente CLI | `cliente.py` | Terminal interativo para consultar e comandar |
+| Bridge REST/SSE | `api.py` | FastAPI: gerencia subprocessos + proxy para o Gateway |
+| Dashboard | `dashboard/` | Next.js 14 — visualização e controle via navegador |
 
 ---
 
-## Tolerância a Falhas
+## Pré-requisitos
 
-| Cenário | Comportamento |
-|---|---|
-| Sensor desligado (Ctrl+C) | Nenhum pacote de desconexão é enviado. Em ≤35 s o Fault-Monitor remove o dispositivo. Histórico UDP fica em `sensor_history`. |
-| Gateway reiniciado | Sensores/atuadores continuam rodando (UDP é fire-and-forget; TCP aguarda). `SO_REUSEADDR` evita `Address already in use`. Em ≤5 s o próximo broadcast repopula `active_devices`. |
-| Cliente durante queda do Gateway | `settimeout(5)` + `except ConnectionRefusedError/timeout` garantem que o cliente nunca trava; retorna ao menu com mensagem de erro. |
-| Comando a atuador offline | Gateway recebe `ConnectionRefusedError`; remove o atuador lazily; retorna `ERROR` ao cliente. |
-
-**Limitação:** `sensor_history` é em memória — reiniciar o Gateway apaga o histórico de leituras.
+| Ferramenta | Versão | Instalação |
+|---|---|---|
+| Python | 3.11+ | python.org |
+| pip packages | — | `pip install protobuf fastapi "uvicorn[standard]"` |
+| Node.js | 18+ | nodejs.org |
+| Rust / Cargo | stable | `winget install Rustlang.Rustup` (só para o sensor Rust) |
 
 ---
 
-## Execução
+## Como rodar
+
+### Opção A — Dashboard (recomendado)
+
+O dashboard gerencia todos os processos internamente via `api.py`.
 
 ```bash
-# 1. Gateway (sempre primeiro)
+# 1. Instalar dependências Python
+pip install protobuf fastapi "uvicorn[standard]"
+
+# 2. Terminal A — API bridge
+python api.py
+
+# 3. Terminal B — Dashboard
+cd dashboard
+npm install   # apenas na primeira vez
+npm run dev
+```
+
+Acesse `http://localhost:3000`. Clique em **Iniciar** nos slots para ligar Gateway, sensores e atuadores. O botão **Conectar Cliente** no painel "Terminal do Cliente" ativa o stream de eventos em tempo real.
+
+---
+
+### Opção B — Linha de comando (sem dashboard)
+
+```bash
+# Terminal 1 — Gateway (sempre primeiro)
 python gateway.py
 
-# 2. Dispositivos (qualquer ordem, em terminais separados)
-# Exemplo — crie arquivos mínimos de execução:
+# Terminal 2 — Sensor de temperatura Python
 python -c "from dispositivos import Continuos; Continuos('TEMPERATURE_SENSOR','Celsius').iniciar()"
-python -c "from dispositivos import SensorControlavel; SensorControlavel('AIR_QUALITY_SENSOR','µg/m³').iniciar()"
+
+# Terminal 3 — Sensor de qualidade do ar (controlável)
+python -c "from dispositivos import SensorControlavel; SensorControlavel('AIR_QUALITY_SENSOR','ug/m3').iniciar()"
+
+# Terminal 4 — Atuador (poste)
 python -c "from dispositivos import Atuador; Atuador('LAMP_POST').iniciar()"
 
-# 2b. Sensor de temperatura em Rust (opcional — substitui ou complementa o sensor Python)
-cd dispositivo_rust
-cargo run
+# Terminal 5 — Sensor Rust (opcional)
+cd dispositivo_rust && cargo run
 
-# 3. Cliente (por último)
+# Terminal 6 — Cliente analítico
 python cliente.py
 ```
 
-**Comandos do cliente:**
-- `[1]` LIST\_DEVICES — lista todos os dispositivos online
-- `[2]` GET\_AVG `<device_id>` — média de todas as leituras do sensor
-- `[3]` SET\_STATE `<device_id> 1|0` — liga ou desliga atuador
+**Comandos do cliente CLI:**
 
-**Simular falhas:**
-- Derrubar sensor → aguardar 35 s → ver alerta no Gateway
-- Reiniciar Gateway → dispositivos se re-registram em ≤ 5 s automaticamente
-- Derrubar atuador → tentar SET\_STATE → Gateway remove e informa o cliente
+| Opção | O que faz |
+|---|---|
+| `1` LIST_DEVICES | Lista todos os dispositivos online com tipo, IP e estado |
+| `2` GET_AVG | Média de todas as leituras de um sensor específico |
+| `3` SET_STATE | Liga (`1`) ou desliga (`0`) um atuador |
 
 ---
 
-> Documentação completa com diagramas, trechos de código e análise aprofundada em [DOCUMENTACAO.md](DOCUMENTACAO.md).
+## O que acontece quando você roda
+
+1. Gateway inicia e começa broadcasts multicast a cada 5 s na porta 5007
+2. Cada dispositivo recebe o broadcast, descobre o IP do Gateway e envia um anúncio UDP para a porta 5008
+3. Gateway registra o dispositivo em memória
+4. Sensores enviam leituras UDP a cada 15 s; Gateway armazena em `sensor_history`
+5. Dashboard consulta e controla via TCP na porta 5009 (através da API na porta 8000)
+6. Se um sensor parar, é removido em ≤ 25 s; se um atuador parar, em ≤ 10 s
+7. Se o Gateway reiniciar, os dispositivos se re-registram em ≤ 5 s automaticamente
+
+---
+
+## Limitação conhecida
+
+`sensor_history` é mantido apenas em memória — reiniciar o Gateway apaga o histórico de leituras.
+
+> Documentação técnica completa (protocolos, decisões de design, fluxos de dados, referência da API): [DOCUMENTACAO.md](DOCUMENTACAO.md)
