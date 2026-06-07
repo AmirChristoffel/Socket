@@ -1,5 +1,6 @@
 # dispositivos.py (Versão Refatorada com Lógica de Rede)
 
+import os
 import socket
 import struct
 import threading
@@ -33,11 +34,11 @@ class Dispositivos:
     def iniciar(self):
         """Inicia os processos de descoberta e o servidor de comandos em threads."""
         print(f"Iniciando dispositivo: {self.device_id}")
-        
+
         # Inicia o servidor TCP em uma thread para escutar por comandos
         tcp_thread = threading.Thread(target=self.start_tcp_server, daemon=True)
         tcp_thread.start()
-        
+
         # Aguarda um instante para garantir que a porta TCP foi alocada
         time.sleep(1)
 
@@ -68,7 +69,24 @@ class Dispositivos:
             self.handle_connection(conn)
 
     def listen_for_discovery(self):
-        """Lógica do listener UDP Multicast para ser descoberto pelo Gateway."""
+        """Lógica do listener UDP Multicast para ser descoberto pelo Gateway.
+
+        Se a variável de ambiente GATEWAY_ADDR=ip:porta estiver definida,
+        pula a descoberta multicast e conecta direto (útil quando o bind na
+        porta 5007 é bloqueado pelo sistema operacional, como no Windows com
+        múltiplos processos).
+        """
+        gateway_env = os.environ.get("GATEWAY_ADDR")
+        if gateway_env:
+            try:
+                ip, port_str = gateway_env.split(":")
+                self.gateway_address = (ip, int(port_str))
+                print(f"[{self.device_id}] Gateway via GATEWAY_ADDR: {self.gateway_address}")
+                self.send_announcement(self.gateway_address)
+            except Exception as e:
+                print(f"[{self.device_id}] Erro ao usar GATEWAY_ADDR: {e}")
+            return
+
         multicast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         multicast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         multicast_socket.bind(('', MULTICAST_PORT))
@@ -166,12 +184,9 @@ class Continuos(Dispositivos):
         """Sobrescreve o método iniciar para sensores."""
         print(f"Iniciando sensor: {self.device_id}")
 
-        # Inicia a thread de descoberta — ela vai preencher self.gateway_address
         discovery_thread = threading.Thread(target=self.listen_for_discovery, daemon=True)
         discovery_thread.start()
 
-        # [MUDANÇA] Não passa endereço hardcoded como argumento.
-        # start_sending_data aguarda self.gateway_address ser preenchido pela descoberta.
         data_thread = threading.Thread(target=self.start_sending_data, daemon=True)
         data_thread.start()
 

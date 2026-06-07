@@ -1,0 +1,7 @@
+Iniciando sensor: temperature_sensor_4889
+[temperature_sensor_4889] Gateway via GATEWAY_ADDR: ('127.0.0.1', 5008)
+[temperature_sensor_4889] Anúncio enviado para o Gateway.
+temperature_sensor_4889 iniciado. Pressione Ctrl+C para sair.
+[temperature_sensor_4889] Aguardando descoberta do Gateway para iniciar envio...
+[temperature_sensor_4889] Gateway encontrado. Enviando dados para ('127.0.0.1', 5008)
+[temperature_sensor_4889] Nova leitura: 20.34 Celsius

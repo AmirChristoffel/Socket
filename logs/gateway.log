@@ -1,0 +1,654 @@
+====================================================
+   Gateway Inteligente — Cidade Inteligente
+====================================================
+Exception in thread Discovery-Broadcaster[UDP] Aguardando mensagens na porta 5008 (anúncios + dados):
+Traceback (most recent call last):
+
+[Monitor] Thread de deteccao de falhas iniciada (intervalo=10s).  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\threading.py", line 1045, in _bootstrap_inner
+
+[Gateway] Em execucao. Pressione Ctrl+C para sair.
+
+[TCP] Servidor escutando na porta 5009 (Cliente Analitico)
+    self.run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\threading.py", line 982, in run
+    self._target(*self._args, **self._kwargs)
+  File "C:\Users\amirc\Documents\UFC\Distribuição de Processos\SD_Socktes\gateway.py", line 65, in _thread_multicast_discovery
+    print(f"[Discovery] Broadcaster iniciado \u2192 {MULTICAST_GROUP}:{MULTICAST_PORT}")
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 33: character maps to <undefined>
+
+[UDP] + Dispositivo registrado: rust_temp_sensor_c81f
+      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:0
+
+[UDP] [sensor] Leitura de 'rust_temp_sensor_c81f': 25.40 Celsius
+[TCP] Cliente conectado: ('127.0.0.1', 52299)
+[TCP] Comando recebido de ('127.0.0.1', 52299): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52299): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52300)
+[TCP] Comando recebido de ('127.0.0.1', 52300): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52300): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52301)
+[TCP] Comando recebido de ('127.0.0.1', 52301): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52301): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52302)
+[TCP] Comando recebido de ('127.0.0.1', 52302): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52302): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52303)
+[TCP] Comando recebido de ('127.0.0.1', 52303): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52303): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52304)
+[TCP] Comando recebido de ('127.0.0.1', 52304): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52304): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52305)
+[TCP] Comando recebido de ('127.0.0.1', 52305): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52305): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52306)
+[TCP] Comando recebido de ('127.0.0.1', 52306): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52306): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52307)
+[TCP] Comando recebido de ('127.0.0.1', 52307): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52307): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52308)
+[TCP] Comando recebido de ('127.0.0.1', 52308): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52308): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52309)
+[TCP] Comando recebido de ('127.0.0.1', 52309): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52309): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52310)
+[TCP] Comando recebido de ('127.0.0.1', 52310): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52310): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52311)
+[TCP] Comando recebido de ('127.0.0.1', 52311): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52311): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52312)
+[TCP] Comando recebido de ('127.0.0.1', 52312): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52312): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52313)
+[TCP] Comando recebido de ('127.0.0.1', 52313): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52313): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52314)
+[TCP] Comando recebido de ('127.0.0.1', 52314): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52314): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52315)
+[TCP] Comando recebido de ('127.0.0.1', 52315): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52315): status=SUCCESS
+[UDP] [sensor] Leitura de 'rust_temp_sensor_c81f': 26.90 Celsius
+[TCP] Cliente conectado: ('127.0.0.1', 61158)
+[TCP] Comando recebido de ('127.0.0.1', 61158): 'PING'
+[TCP] Resposta para ('127.0.0.1', 61158): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 61159)
+[TCP] Comando recebido de ('127.0.0.1', 61159): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 61159): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 61160)
+[TCP] Comando recebido de ('127.0.0.1', 61160): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 61160): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49809)
+[TCP] Comando recebido de ('127.0.0.1', 49809): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 49809): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49810)
+[TCP] Comando recebido de ('127.0.0.1', 49810): 'PING'
+[TCP] Resposta para ('127.0.0.1', 49810): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49811)
+[TCP] Comando recebido de ('127.0.0.1', 49811): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 49811): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49812)
+[TCP] Comando recebido de ('127.0.0.1', 49812): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 49812): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49814)
+[TCP] Comando recebido de ('127.0.0.1', 49814): 'PING'
+[TCP] Resposta para ('127.0.0.1', 49814): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49815)
+[TCP] Comando recebido de ('127.0.0.1', 49815): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 49815): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49816)
+[TCP] Comando recebido de ('127.0.0.1', 49816): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 49816): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52390)
+[TCP] Comando recebido de ('127.0.0.1', 52390): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52390): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52391)
+[TCP] Comando recebido de ('127.0.0.1', 52391): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52391): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52392)
+[TCP] Comando recebido de ('127.0.0.1', 52392): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52392): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52393)
+[TCP] Comando recebido de ('127.0.0.1', 52393): 'PING'
+[TCP] Resposta para ('127.0.0.1', 52393): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52394)
+[TCP] Comando recebido de ('127.0.0.1', 52394): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 52394): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 52395)
+[TCP] Comando recebido de ('127.0.0.1', 52395): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 52395): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49394)
+[TCP] Comando recebido de ('127.0.0.1', 49394): 'PING'
+[TCP] Resposta para ('127.0.0.1', 49394): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49395)
+[TCP] Comando recebido de ('127.0.0.1', 49395): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 49395): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 49396)
+[TCP] Comando recebido de ('127.0.0.1', 49396): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 49396): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57592)
+[TCP] Comando recebido de ('127.0.0.1', 57592): 'PING'
+[TCP] Resposta para ('127.0.0.1', 57592): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57593)
+[TCP] Comando recebido de ('127.0.0.1', 57593): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57593): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57594)
+[TCP] Comando recebido de ('127.0.0.1', 57594): 'PING'
+[TCP] Resposta para ('127.0.0.1', 57594): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57595)
+[TCP] Comando recebido de ('127.0.0.1', 57595): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57595): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57596)
+[TCP] Comando recebido de ('127.0.0.1', 57596): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 57596): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57597)
+[TCP] Comando recebido de ('127.0.0.1', 57597): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57597): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57598)
+[TCP] Comando recebido de ('127.0.0.1', 57598): 'PING'
+[TCP] Resposta para ('127.0.0.1', 57598): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57599)
+[TCP] Comando recebido de ('127.0.0.1', 57599): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57599): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57600)
+[TCP] Comando recebido de ('127.0.0.1', 57600): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 57600): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57601)
+[TCP] Comando recebido de ('127.0.0.1', 57601): 'PING'
+[TCP] Resposta para ('127.0.0.1', 57601): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57602)
+[TCP] Comando recebido de ('127.0.0.1', 57602): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57602): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57603)
+[TCP] Comando recebido de ('127.0.0.1', 57603): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 57603): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57604)
+[TCP] Comando recebido de ('127.0.0.1', 57604): 'PING'
+[TCP] Cliente conectado: ('127.0.0.1', 57605)
+[TCP] Resposta para ('127.0.0.1', 57604): status=SUCCESS
+[TCP] Comando recebido de ('127.0.0.1', 57605): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57605): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57606)
+[TCP] Comando recebido de ('127.0.0.1', 57606): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 57606): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57607)
+[TCP] Comando recebido de ('127.0.0.1', 57607): 'PING'
+[TCP] Resposta para ('127.0.0.1', 57607): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57608)
+[TCP] Comando recebido de ('127.0.0.1', 57608): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57608): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57609)
+[TCP] Comando recebido de ('127.0.0.1', 57609): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 57609): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64615)
+[TCP] Comando recebido de ('127.0.0.1', 64615): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64615): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64616)
+[TCP] Comando recebido de ('127.0.0.1', 64616): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64616): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64617)
+[TCP] Comando recebido de ('127.0.0.1', 64617): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64617): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64618)
+[TCP] Comando recebido de ('127.0.0.1', 64618): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64618): status=SUCCESS
+
+[UDP] + Dispositivo registrado: rust_temp_sensor_6569
+      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:0
+
+[UDP] [sensor] Leitura de 'rust_temp_sensor_6569': 21.10 Celsius
+[TCP] Cliente conectado: ('127.0.0.1', 64619)
+[TCP] Comando recebido de ('127.0.0.1', 64619): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64619): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64620)
+[TCP] Comando recebido de ('127.0.0.1', 64620): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64620): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64621)
+[TCP] Comando recebido de ('127.0.0.1', 64621): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64621): status=SUCCESS
+
+[ALERTA] Sensor 'rust_temp_sensor_c81f' parou de enviar dados e foi removido da lista de ativos!
+
+[TCP] Cliente conectado: ('127.0.0.1', 64622)
+[TCP] Comando recebido de ('127.0.0.1', 64622): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64622): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64623)
+[TCP] Comando recebido de ('127.0.0.1', 64623): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64623): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64624)
+[TCP] Comando recebido de ('127.0.0.1', 64624): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64624): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64627)
+[TCP] Comando recebido de ('127.0.0.1', 64627): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64627): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64628)
+[TCP] Comando recebido de ('127.0.0.1', 64628): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64628): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64629)
+[TCP] Comando recebido de ('127.0.0.1', 64629): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64629): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64630)
+[TCP] Comando recebido de ('127.0.0.1', 64630): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64630): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64632)
+[TCP] Comando recebido de ('127.0.0.1', 64632): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 64632): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64636)
+[TCP] Comando recebido de ('127.0.0.1', 64636): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64636): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64637)
+[TCP] Cliente conectado: ('127.0.0.1', 64638)[TCP] Comando recebido de ('127.0.0.1', 64637): 'LIST_DEVICES'
+
+[TCP] Resposta para ('127.0.0.1', 64637): status=SUCCESS
+[TCP] Comando recebido de ('127.0.0.1', 64638): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 64638): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64639)
+[TCP] Comando recebido de ('127.0.0.1', 64639): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64639): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64642)
+[TCP] Comando recebido de ('127.0.0.1', 64642): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64642): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64643)
+[TCP] Comando recebido de ('127.0.0.1', 64643): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64643): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64644)
+[TCP] Comando recebido de ('127.0.0.1', 64644): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64644): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64647)
+[TCP] Comando recebido de ('127.0.0.1', 64647): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64647): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64648)
+[TCP] Comando recebido de ('127.0.0.1', 64648): 'LIST_DEVICES'
+[TCP] Cliente conectado: ('127.0.0.1', 64649)
+[TCP] Resposta para ('127.0.0.1', 64648): status=SUCCESS
+[TCP] Comando recebido de ('127.0.0.1', 64649): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64649): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64652)
+[TCP] Comando recebido de ('127.0.0.1', 64652): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64652): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64653)
+[TCP] Comando recebido de ('127.0.0.1', 64653): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64653): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64654)
+[TCP] Comando recebido de ('127.0.0.1', 64654): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64654): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 51179)
+[TCP] Comando recebido de ('127.0.0.1', 51179): 'PING'
+[TCP] Resposta para ('127.0.0.1', 51179): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 51180)
+[TCP] Comando recebido de ('127.0.0.1', 51180): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 51180): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 51181)
+[TCP] Comando recebido de ('127.0.0.1', 51181): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 51181): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58048)
+[TCP] Comando recebido de ('127.0.0.1', 58048): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58048): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58049)
+[TCP] Comando recebido de ('127.0.0.1', 58049): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58049): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58050)
+[TCP] Comando recebido de ('127.0.0.1', 58050): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58050): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 53638)
+[TCP] Comando recebido de ('127.0.0.1', 53638): 'PING'
+[TCP] Resposta para ('127.0.0.1', 53638): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 53639)
+[TCP] Comando recebido de ('127.0.0.1', 53639): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 53639): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 53640)
+[TCP] Comando recebido de ('127.0.0.1', 53640): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 53640): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64415)
+[TCP] Comando recebido de ('127.0.0.1', 64415): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64415): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64416)
+[TCP] Comando recebido de ('127.0.0.1', 64416): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64416): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64417)
+[TCP] Comando recebido de ('127.0.0.1', 64417): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64417): status=SUCCESS
+
+[UDP] + Dispositivo registrado: rust_temp_sensor_735f
+      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:0
+
+[UDP] [sensor] Leitura de 'rust_temp_sensor_735f': 24.20 Celsius
+[TCP] Cliente conectado: ('127.0.0.1', 64421)
+[TCP] Comando recebido de ('127.0.0.1', 64421): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64421): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64422)
+[TCP] Comando recebido de ('127.0.0.1', 64422): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64422): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64423)
+[TCP] Comando recebido de ('127.0.0.1', 64423): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64423): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64424)
+[TCP] Comando recebido de ('127.0.0.1', 64424): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64424): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64425)
+[TCP] Comando recebido de ('127.0.0.1', 64425): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64425): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64426)
+[TCP] Comando recebido de ('127.0.0.1', 64426): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64426): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64428)
+[TCP] Comando recebido de ('127.0.0.1', 64428): 'PING'
+[TCP] Resposta para ('127.0.0.1', 64428): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64429)
+[TCP] Comando recebido de ('127.0.0.1', 64429): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 64429): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 64430)
+[TCP] Comando recebido de ('127.0.0.1', 64430): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 64430): status=SUCCESS
+
+[ALERTA] Sensor 'rust_temp_sensor_6569' parou de enviar dados e foi removido da lista de ativos!
+
+[TCP] Cliente conectado: ('127.0.0.1', 65402)
+[TCP] Comando recebido de ('127.0.0.1', 65402): 'PING'
+[TCP] Resposta para ('127.0.0.1', 65402): status=SUCCESS[TCP] Cliente conectado: ('127.0.0.1', 65403)
+
+[TCP] Comando recebido de ('127.0.0.1', 65403): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 65403): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 65404)
+[TCP] Comando recebido de ('127.0.0.1', 65404): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 65404): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54954)
+[TCP] Comando recebido de ('127.0.0.1', 54954): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 54954): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54955)
+[TCP] Comando recebido de ('127.0.0.1', 54955): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 54955): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54956)
+[TCP] Comando recebido de ('127.0.0.1', 54956): 'PING'
+[TCP] Resposta para ('127.0.0.1', 54956): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54957)
+[TCP] Comando recebido de ('127.0.0.1', 54957): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 54957): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54958)
+[TCP] Comando recebido de ('127.0.0.1', 54958): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 54958): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54960)
+[TCP] Comando recebido de ('127.0.0.1', 54960): 'PING'
+[TCP] Resposta para ('127.0.0.1', 54960): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54961)
+[TCP] Comando recebido de ('127.0.0.1', 54961): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 54961): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 54962)
+[TCP] Comando recebido de ('127.0.0.1', 54962): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 54962): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58299)
+[TCP] Comando recebido de ('127.0.0.1', 58299): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 58299): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58300)
+[TCP] Comando recebido de ('127.0.0.1', 58300): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58300): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58301)
+[TCP] Comando recebido de ('127.0.0.1', 58301): 'LIST_DEVICES'
+[TCP] Cliente conectado: ('127.0.0.1', 58302)
+[TCP] Resposta para ('127.0.0.1', 58301): status=SUCCESS
+[TCP] Comando recebido de ('127.0.0.1', 58302): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58302): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58303)
+[TCP] Comando recebido de ('127.0.0.1', 58303): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58303): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58304)
+[TCP] Comando recebido de ('127.0.0.1', 58304): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58304): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58305)
+[TCP] Comando recebido de ('127.0.0.1', 58305): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58305): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58306)
+[TCP] Comando recebido de ('127.0.0.1', 58306): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58306): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58307)
+[TCP] Comando recebido de ('127.0.0.1', 58307): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58307): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58308)
+[TCP] Comando recebido de ('127.0.0.1', 58308): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58308): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58309)
+[TCP] Comando recebido de ('127.0.0.1', 58309): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58309): status=SUCCESS
+
+[UDP] + Dispositivo registrado: temperature_sensor_4889
+      Tipo: TEMPERATURE_SENSOR  |  Atuador: False  |  Endereco: 127.0.0.1:0
+
+[UDP] [sensor] Leitura de 'temperature_sensor_4889': 20.34 Celsius
+[TCP] Cliente conectado: ('127.0.0.1', 58310)
+[TCP] Comando recebido de ('127.0.0.1', 58310): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58310): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58311)
+[TCP] Comando recebido de ('127.0.0.1', 58311): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58311): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58312)
+[TCP] Comando recebido de ('127.0.0.1', 58312): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58312): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58313)
+[TCP] Comando recebido de ('127.0.0.1', 58313): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 58313): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58314)
+[TCP] Comando recebido de ('127.0.0.1', 58314): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 58314): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58315)
+[TCP] Comando recebido de ('127.0.0.1', 58315): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58315): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58316)
+[TCP] Comando recebido de ('127.0.0.1', 58316): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58316): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58317)
+[TCP] Comando recebido de ('127.0.0.1', 58317): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58317): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58318)
+[TCP] Comando recebido de ('127.0.0.1', 58318): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58318): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58319)
+[TCP] Comando recebido de ('127.0.0.1', 58319): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58319): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58320)
+[TCP] Comando recebido de ('127.0.0.1', 58320): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58320): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58321)
+[TCP] Comando recebido de ('127.0.0.1', 58321): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58321): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58324)
+[TCP] Comando recebido de ('127.0.0.1', 58324): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58324): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58325)
+[TCP] Comando recebido de ('127.0.0.1', 58325): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58325): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58326)
+[TCP] Comando recebido de ('127.0.0.1', 58326): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58326): status=SUCCESS
+
+[ALERTA] Sensor 'rust_temp_sensor_735f' parou de enviar dados e foi removido da lista de ativos!
+
+
+[UDP] + Dispositivo registrado: camera_042a
+      Tipo: CAMERA  |  Atuador: True  |  Endereco: 127.0.0.1:58327
+
+[TCP] Cliente conectado: ('127.0.0.1', 58328)
+[TCP] Comando recebido de ('127.0.0.1', 58328): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58328): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58329)
+[TCP] Comando recebido de ('127.0.0.1', 58329): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58329): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58330)
+[TCP] Comando recebido de ('127.0.0.1', 58330): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58330): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57876)
+[TCP] Comando recebido de ('127.0.0.1', 57876): 'PING'
+[TCP] Resposta para ('127.0.0.1', 57876): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57877)
+[TCP] Comando recebido de ('127.0.0.1', 57877): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 57877): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 57878)
+[TCP] Comando recebido de ('127.0.0.1', 57878): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 57878): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55424)
+[TCP] Comando recebido de ('127.0.0.1', 55424): 'SET_STATE'
+[TCP] Resposta para ('127.0.0.1', 55424): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55426)
+[TCP] Comando recebido de ('127.0.0.1', 55426): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55426): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55427)
+[TCP] Comando recebido de ('127.0.0.1', 55427): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55427): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55428)
+[TCP] Comando recebido de ('127.0.0.1', 55428): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55428): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55429)
+[TCP] Comando recebido de ('127.0.0.1', 55429): 'SET_STATE'
+[TCP] Resposta para ('127.0.0.1', 55429): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55432)
+[TCP] Comando recebido de ('127.0.0.1', 55432): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 55432): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55433)
+[TCP] Comando recebido de ('127.0.0.1', 55433): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55433): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55434)
+[TCP] Comando recebido de ('127.0.0.1', 55434): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55434): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55435)
+[TCP] Comando recebido de ('127.0.0.1', 55435): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55435): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55436)
+[TCP] Comando recebido de ('127.0.0.1', 55436): 'GET_AVG'
+[TCP] Resposta para ('127.0.0.1', 55436): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55437)
+[TCP] Comando recebido de ('127.0.0.1', 55437): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55437): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55438)
+[TCP] Comando recebido de ('127.0.0.1', 55438): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55438): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55439)
+[TCP] Comando recebido de ('127.0.0.1', 55439): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55439): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55442)
+[TCP] Comando recebido de ('127.0.0.1', 55442): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55442): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55443)
+[TCP] Comando recebido de ('127.0.0.1', 55443): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55443): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55444)
+[TCP] Comando recebido de ('127.0.0.1', 55444): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55444): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55445)
+[TCP] Comando recebido de ('127.0.0.1', 55445): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55445): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55446)
+[TCP] Comando recebido de ('127.0.0.1', 55446): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55446): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55447)
+[TCP] Comando recebido de ('127.0.0.1', 55447): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55447): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55448)
+[TCP] Comando recebido de ('127.0.0.1', 55448): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55448): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55449)
+[TCP] Comando recebido de ('127.0.0.1', 55449): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55449): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55450)
+[TCP] Comando recebido de ('127.0.0.1', 55450): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55450): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55451)
+[TCP] Comando recebido de ('127.0.0.1', 55451): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55451): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55452)
+[TCP] Comando recebido de ('127.0.0.1', 55452): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55452): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55453)
+[TCP] Comando recebido de ('127.0.0.1', 55453): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55453): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55454)
+[TCP] Comando recebido de ('127.0.0.1', 55454): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55454): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55455)
+[TCP] Comando recebido de ('127.0.0.1', 55455): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55455): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55456)
+[TCP] Comando recebido de ('127.0.0.1', 55456): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55456): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55457)
+[TCP] Comando recebido de ('127.0.0.1', 55457): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55457): status=SUCCESS
+
+[ALERTA] Sensor 'temperature_sensor_4889' parou de enviar dados e foi removido da lista de ativos!
+
+[TCP] Cliente conectado: ('127.0.0.1', 55459)
+[TCP] Comando recebido de ('127.0.0.1', 55459): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55459): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55460)
+[TCP] Comando recebido de ('127.0.0.1', 55460): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55460): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55461)
+[TCP] Comando recebido de ('127.0.0.1', 55461): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55461): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55462)
+[TCP] Comando recebido de ('127.0.0.1', 55462): 'PING'
+[TCP] Resposta para ('127.0.0.1', 55462): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55463)
+[TCP] Comando recebido de ('127.0.0.1', 55463): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 55463): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 55464)
+[TCP] Comando recebido de ('127.0.0.1', 55464): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 55464): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58977)
+[TCP] Comando recebido de ('127.0.0.1', 58977): 'SET_STATE'
+[TCP] Cliente conectado: ('127.0.0.1', 58979)
+[TCP] Comando recebido de ('127.0.0.1', 58979): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58979): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58980)
+[TCP] Comando recebido de ('127.0.0.1', 58980): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58980): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58981)
+[TCP] Comando recebido de ('127.0.0.1', 58981): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58981): status=SUCCESS
+
+[ALERTA] Atuador 'camera_042a' nao respondeu e foi removido!
+
+[TCP] Resposta para ('127.0.0.1', 58977): status=ERROR
+[TCP] Cliente conectado: ('127.0.0.1', 58982)
+[TCP] Comando recebido de ('127.0.0.1', 58982): 'SET_STATE'
+[TCP] Resposta para ('127.0.0.1', 58982): status=ERROR
+[TCP] Cliente conectado: ('127.0.0.1', 58983)
+[TCP] Comando recebido de ('127.0.0.1', 58983): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58983): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58984)
+[TCP] Comando recebido de ('127.0.0.1', 58984): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58984): status=ERROR
+[TCP] Cliente conectado: ('127.0.0.1', 58985)
+[TCP] Comando recebido de ('127.0.0.1', 58985): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58985): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58986)
+[TCP] Comando recebido de ('127.0.0.1', 58986): 'PING'
+[TCP] Resposta para ('127.0.0.1', 58986): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 58987)
+[TCP] Comando recebido de ('127.0.0.1', 58987): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 58987): status=ERROR
+[TCP] Cliente conectado: ('127.0.0.1', 58988)
+[TCP] Comando recebido de ('127.0.0.1', 58988): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 58988): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 63202)
+[TCP] Comando recebido de ('127.0.0.1', 63202): 'PING'
+[TCP] Resposta para ('127.0.0.1', 63202): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 63203)
+[TCP] Comando recebido de ('127.0.0.1', 63203): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 63203): status=ERROR
+[TCP] Cliente conectado: ('127.0.0.1', 63204)
+[TCP] Comando recebido de ('127.0.0.1', 63204): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 63204): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 59828)
+[TCP] Comando recebido de ('127.0.0.1', 59828): 'PING'
+[TCP] Resposta para ('127.0.0.1', 59828): status=SUCCESS
+[TCP] Cliente conectado: ('127.0.0.1', 59829)
+[TCP] Comando recebido de ('127.0.0.1', 59829): 'LIST_DEVICES'
+[TCP] Resposta para ('127.0.0.1', 59829): status=ERROR
+[TCP] Cliente conectado: ('127.0.0.1', 59830)
+[TCP] Comando recebido de ('127.0.0.1', 59830): 'GET_HISTORY'
+[TCP] Resposta para ('127.0.0.1', 59830): status=SUCCESS

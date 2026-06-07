@@ -108,12 +108,14 @@ class SmartCityGateway:
         """Salva ou atualiza um dispositivo em self.active_devices (thread-safe)."""
         # 2. ATUALIZAR O REGISTRO NA DESCOBERTA
         with self.lock:
+            existing = self.active_devices.get(announcement.device_id, {})
             self.active_devices[announcement.device_id] = {
                 'type':        todolist_pb2.DeviceType.Name(announcement.type),
                 'ip':          announcement.ip_address,
                 'port':        announcement.port,
                 'is_actuator': announcement.is_actuator,
-                'last_seen':   time.time()
+                'last_seen':   time.time(),
+                'state':       existing.get('state', False),
             }
 
         print(f"\n[UDP] + Dispositivo registrado: {announcement.device_id}")
@@ -200,6 +202,11 @@ class SmartCityGateway:
                 response_msg.gateway_response.status  = status
                 response_msg.gateway_response.message = message
 
+            elif req.command == "GET_HISTORY":
+                status, message = self._cmd_get_history()
+                response_msg.gateway_response.status  = status
+                response_msg.gateway_response.message = message
+
             elif req.command == "SET_STATE":
                 status, message = self._cmd_set_state(
                     req.target_device_id, req.new_state
@@ -231,7 +238,7 @@ class SmartCityGateway:
             return "ERROR", "Nenhum dispositivo conectado."
 
         lines = [f"  [{i+1}] {did} | tipo={info['type']} | "
-                 f"atuador={info['is_actuator']} | ip={info['ip']}:{info['port']}"
+                 f"atuador={info['is_actuator']} | ip={info['ip']}:{info['port']} | estado={info.get('state', False)}"
                  for i, (did, info) in enumerate(snapshot.items())]
         return "SUCCESS", f"{len(snapshot)} dispositivo(s):\n" + "\n".join(lines)
 
@@ -250,6 +257,18 @@ class SmartCityGateway:
         avg  = sum(r['value'] for r in readings) / len(readings)
         unit = readings[-1]['unit']
         return "SUCCESS", f"Media de '{device_id}': {avg:.2f} {unit} ({len(readings)} leituras)"
+
+    def _cmd_get_history(self, limit: int = 20):
+        """Retorna as últimas `limit` leituras de todos os sensores."""
+        with self.lock:
+            recent = list(self.sensor_history[-limit:])
+        if not recent:
+            return "ERROR", "Sem leituras ainda."
+        lines = [
+            f"device_id={r['device_id']} | value={r['value']:.2f} | unit={r['unit']} | ts={r['timestamp']}"
+            for r in recent
+        ]
+        return "SUCCESS", "\n".join(lines)
 
     def _cmd_set_state(self, device_id, new_state):
         """Repassa um ActuatorCommand via TCP diretamente ao atuador."""
@@ -275,6 +294,9 @@ class SmartCityGateway:
                 s.settimeout(5)
                 s.connect((device['ip'], device['port']))
                 s.sendall(cmd_msg.SerializeToString())
+            with self.lock:
+                if device_id in self.active_devices:
+                    self.active_devices[device_id]['state'] = new_state
             estado = "LIGADO" if new_state else "DESLIGADO"
             return "SUCCESS", f"'{device_id}' definido como {estado}."
         except (ConnectionRefusedError, TimeoutError, OSError):

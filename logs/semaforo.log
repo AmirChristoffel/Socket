@@ -1,0 +1,12 @@
+Iniciando dispositivo: traffic_light_be4e
+[traffic_light_be4e] Servidor TCP escutando em 127.0.0.1:52994
+[traffic_light_be4e] Gateway via GATEWAY_ADDR: ('127.0.0.1', 5008)
+traffic_light_be4e iniciado. Pressione Ctrl+C para sair.
+[traffic_light_be4e] Anúncio enviado para o Gateway.
+[traffic_light_be4e] Gateway conectado via TCP em ('127.0.0.1', 52999)
+[traffic_light_be4e] Comando recebido: Ligar
+[traffic_light_be4e] Novo estado: Ligado
+[traffic_light_be4e] [Heartbeat] Reenviando anúncio para ('127.0.0.1', 5008)
+[traffic_light_be4e] Anúncio enviado para o Gateway.
+[traffic_light_be4e] [Heartbeat] Reenviando anúncio para ('127.0.0.1', 5008)
+[traffic_light_be4e] Anúncio enviado para o Gateway.

@@ -1,0 +1,8 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running `target\debug\dispositivo_rust.exe`
+=== Dispositivo IoT em Rust Iniciado ===
+Device ID: rust_temp_sensor_735f
+[Config] Gateway via GATEWAY_ADDR: 127.0.0.1:5008
+[Registro] Anuncio enviado para o Gateway em 127.0.0.1:5008.
+[Telemetria] Enviando leituras a cada 15 segundos...
+[Telemetria] rust_temp_sensor_735f = 24.2 Celsius (ts: 1780851442)
